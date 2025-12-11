@@ -1282,6 +1282,7 @@ public interface Web extends Router, Applicative<Web> {
         }
 
         //endregion
+
         //region Methods
         default <T extends Data> Route Body(
                 Function<JsonObject, T> read,

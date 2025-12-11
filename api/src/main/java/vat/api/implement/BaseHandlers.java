@@ -207,7 +207,7 @@ public interface BaseHandlers {
     static <T extends Data, R extends Collection<T>> Handler<AsyncResult<R>> sendJsonDataList(boolean debug, RoutingContext ctx) {
         return r -> {
             if (r.succeeded()) {
-                ctx.json(toJson(r.result()));
+                ctx.json(toJS(r.result()));
             } else {
                 if (debug) log.error("fail {}", Web.dump(ctx), r.cause());
                 ctx.fail(r.cause());
@@ -241,7 +241,7 @@ public interface BaseHandlers {
                 if (r.succeeded()) {
                     ctx.json(JsonObject.of(
                             "code", 200,
-                            "data", toJson(r.result())
+                            "data", toJS(r.result())
                     ));
                 } else {
                     if (debug) log.error("fail {}", Web.dump(ctx), r.cause());
