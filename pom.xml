@@ -1,0 +1,748 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <packaging>pom</packaging>
+    <modules>
+        <module>api</module>
+        <module>core</module>
+        <module>codegen</module>
+        <module>foundation</module>
+
+        <module>use-foundation</module>
+        <module>use-cache</module>
+        <module>use-jwt</module>
+        <module>use-web</module>
+        <module>use-webclient</module>
+        <module>use-store</module>
+
+        <module>rt-node</module>
+        <module>rt-foundation</module>
+        <module>rt-mysql</module>
+        <module>rt-postgres</module>
+        <module>rt-telemetry</module>
+    </modules>
+
+    <properties>
+        <!--region Maven Configuration -->
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+        <java.version>21</java.version>
+        <maven.compiler.source>${java.version}</maven.compiler.source>
+        <maven.compiler.target>${java.version}</maven.compiler.target>
+
+        <maven.main.skip>false</maven.main.skip>
+        <deployAtEnd>true</deployAtEnd>
+
+        <!-- endregion -->
+
+        <!--region Maven Plugins -->
+        <maven-compiler-plugin.version>3.11.0</maven-compiler-plugin.version>
+        <maven-shade-plugin.version>3.5.0</maven-shade-plugin.version>
+        <maven-surefire-plugin.version>3.1.2</maven-surefire-plugin.version>
+        <exec-maven-plugin.version>3.1.0</exec-maven-plugin.version>
+        <maven-jar-plugin.version>3.4.2</maven-jar-plugin.version>
+        <maven-resources-plugin.version>3.2.0</maven-resources-plugin.version>
+        <maven-source-plugin.version>3.1.0</maven-source-plugin.version>
+        <maven-javadoc-plugin.version>3.2.0</maven-javadoc-plugin.version>
+        <os-maven-plugin.version>1.7.1</os-maven-plugin.version>
+        <protobuf-maven-plugin.version>0.6.1</protobuf-maven-plugin.version>
+        <nexus-staging-maven-plugin.version>1.6.13</nexus-staging-maven-plugin.version>
+        <maven-gpg-plugin.version>3.1.0</maven-gpg-plugin.version>
+        <maven-release-plugin.version>2.5.3</maven-release-plugin.version>
+        <maven-assembly-plugin.version>3.6.0</maven-assembly-plugin.version>
+        <maven-dependency-plugin.version>3.8.0</maven-dependency-plugin.version>
+        <build-helper-maven-plugin.version>3.6.1</build-helper-maven-plugin.version>
+
+        <!-- endregion -->
+
+        <!--region Annotation Processors -->
+        <versions.lombok>1.18.36</versions.lombok>
+        <versions.auto-service>1.1.1</versions.auto-service>
+        <versions.jetbrains-annotations>26.0.1</versions.jetbrains-annotations>
+
+        <versions.junit5>5.11.4</versions.junit5>
+        <versions.mockito>5.15.2</versions.mockito>
+        <versions.openjdk-jol>0.17</versions.openjdk-jol>
+        <versions.compile-testing>0.23.0</versions.compile-testing>
+        <versions.jmh>1.37</versions.jmh>
+        <versions.javapoet>0.8.0</versions.javapoet>
+        <!-- endregion -->
+
+        <!--region Protobuf  -->
+        <versions.protoc>4.29.3</versions.protoc>
+        <versions.grpc>1.70.0</versions.grpc>
+        <!-- endregion -->
+
+        <!--region vertx dependencies -->
+        <versions.jool>0.9.15</versions.jool>
+        <versions.vertx>5.0.5</versions.vertx>
+        <versions.vertx-netty>4.2.7.Final</versions.vertx-netty>
+        <versions.jackson>2.18.2</versions.jackson>
+        <!-- for other compatible use 2.0.9 -->
+        <versions.slf4j>2.0.9</versions.slf4j>
+
+        <versions.micrometer>1.15.5</versions.micrometer>
+        <versions.vertx-termd>1.1.11</versions.vertx-termd>
+        <versions.vertx-opentelemetry>1.46.0</versions.vertx-opentelemetry>
+        <versions.opentelemetry-okhttp>4.12.0</versions.opentelemetry-okhttp>
+        <versions.opentelemetry-semconv>1.34.0</versions.opentelemetry-semconv>
+        <versions.opentelemetry-semconv-incubating>1.34.0-alpha</versions.opentelemetry-semconv-incubating>
+        <versions.logback-classic>1.5.21</versions.logback-classic>
+        <versions.caffeine>3.2.3</versions.caffeine>
+        <versions.fastexcel>0.19.0</versions.fastexcel>
+        <versions.hppc>0.10.0</versions.hppc>
+        <!--endregion -->
+
+        <!--region Configuration -->
+        <vat.versions>1.0-SNAPSHOT</vat.versions>
+        <launcher.class>vat.core.AbstractLauncher</launcher.class>
+        <launcher.verticle>vat.core.BootstrapVerticle</launcher.verticle>
+        <module.name>vat</module.name>
+
+        <!--
+         <node.shade>false</node.shade>
+         <node.shade.minimal>false</node.shade.minimal>
+         <node.libs>false</node.libs>
+         <node.assembly>false</node.libs>
+         -->
+        <!-- endregion -->
+
+
+    </properties>
+    <groupId>io.github.zenliucn.vertx</groupId>
+    <artifactId>vat</artifactId>
+    <name>Vertx Applicative Toolkit</name>
+    <version>1.0-SNAPSHOT</version>
+    <profiles>
+        <profile>
+            <id>enhance</id>
+            <activation>
+                <file>
+                    <exists>.enhance</exists>
+                </file>
+                <activeByDefault>false</activeByDefault>
+            </activation>
+
+            <dependencies>
+                <dependency>
+                    <groupId>io.github.zenliucn.vertx.vat</groupId>
+                    <artifactId>codegen</artifactId>
+                    <version>${vat.versions}</version>
+                    <scope>provided</scope>
+                </dependency>
+                <dependency>
+                    <groupId>com.palantir.javapoet</groupId>
+                    <artifactId>javapoet</artifactId>
+                    <scope>provided</scope>
+                </dependency>
+                <dependency>
+                    <groupId>io.github.zenliucn.vertx.vat</groupId>
+                    <artifactId>api</artifactId>
+                    <version>${vat.versions}</version>
+                    <scope>compile</scope>
+                </dependency>
+                <!-- for .enhance reading -->
+                <dependency>
+                    <groupId>io.vertx</groupId>
+                    <artifactId>vertx-config-hocon</artifactId>
+                    <scope>provided</scope>
+                </dependency>
+                <dependency>
+                    <groupId>io.vertx</groupId>
+                    <artifactId>vertx-service-proxy</artifactId>
+                    <scope>provided</scope>
+                </dependency>
+                <dependency>
+                    <groupId>io.vertx</groupId>
+                    <artifactId>vertx-sql-client</artifactId>
+                    <scope>provided</scope>
+                </dependency>
+                <dependency>
+                    <groupId>io.vertx</groupId>
+                    <artifactId>vertx-sql-client-templates</artifactId>
+                    <scope>provided</scope>
+                </dependency>
+                <dependency>
+                    <groupId>io.vertx</groupId>
+                    <artifactId>vertx-web</artifactId>
+                    <scope>provided</scope>
+                </dependency>
+                <dependency>
+                    <groupId>io.vertx</groupId>
+                    <artifactId>vertx-auth-jwt</artifactId>
+                    <scope>provided</scope>
+                </dependency>
+            </dependencies>
+        </profile>
+
+    </profiles>
+    <dependencyManagement>
+        <dependencies>
+            <!--region Processor -->
+            <dependency>
+                <groupId>org.jetbrains</groupId>
+                <artifactId>annotations</artifactId>
+                <version>${versions.jetbrains-annotations}</version>
+                <optional>true</optional>
+            </dependency>
+            <dependency>
+                <groupId>org.projectlombok</groupId>
+                <artifactId>lombok</artifactId>
+                <optional>true</optional>
+                <version>${versions.lombok}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.google.auto.service</groupId>
+                <artifactId>auto-service</artifactId>
+                <version>${versions.auto-service}</version>
+                <optional>true</optional>
+                <scope>provided</scope>
+            </dependency>
+            <dependency>
+                <groupId>com.palantir.javapoet</groupId>
+                <artifactId>javapoet</artifactId>
+                <version>${versions.javapoet}</version>
+                <optional>true</optional>
+                <scope>provided</scope>
+            </dependency>
+            <!-- endregion -->
+            <!--region API -->
+            <dependency>
+                <groupId>org.slf4j</groupId>
+                <artifactId>slf4j-api</artifactId>
+                <version>${versions.slf4j}</version>
+            </dependency>
+            <!-- endregion -->
+            <!--region utilities -->
+            <dependency>
+                <groupId>org.openjdk.jol</groupId>
+                <artifactId>jol-core</artifactId>
+                <version>${versions.openjdk-jol}</version>
+                <scope>provided</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.jooq</groupId>
+                <artifactId>jool</artifactId>
+                <version>${versions.jool}</version>
+            </dependency>
+            <!-- endregion -->
+            <!--region Components -->
+            <dependency>
+                <groupId>ch.qos.logback</groupId>
+                <artifactId>logback-classic</artifactId>
+                <version>${versions.logback-classic}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.micrometer</groupId>
+                <artifactId>micrometer-bom</artifactId>
+                <version>${versions.micrometer}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>io.opentelemetry</groupId>
+                <artifactId>opentelemetry-bom</artifactId>
+                <version>${versions.vertx-opentelemetry}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>io.opentelemetry</groupId>
+                <artifactId>opentelemetry-exporter-otlp</artifactId>
+                <version>${versions.vertx-opentelemetry}</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>com.squareup.okhttp3</groupId>
+                        <artifactId>okhttp</artifactId>
+                    </exclusion>
+                </exclusions>
+            </dependency>
+            <dependency>
+                <groupId>com.squareup.okhttp3</groupId>
+                <artifactId>okhttp</artifactId>
+                <version>${versions.opentelemetry-okhttp}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.opentelemetry.semconv</groupId>
+                <artifactId>opentelemetry-semconv</artifactId>
+                <version>${versions.opentelemetry-semconv}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.opentelemetry.semconv</groupId>
+                <artifactId>opentelemetry-semconv-incubating</artifactId>
+                <version>${versions.opentelemetry-semconv-incubating}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.google.testing.compile</groupId>
+                <artifactId>compile-testing</artifactId>
+                <version>${versions.compile-testing}</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>io.netty</groupId>
+                <artifactId>netty-bom</artifactId>
+                <version>${versions.vertx-netty}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>com.github.ben-manes.caffeine</groupId>
+                <artifactId>caffeine</artifactId>
+                <version>${versions.caffeine}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.carrotsearch</groupId>
+                <artifactId>hppc</artifactId>
+                <version>${versions.hppc}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>io.vertx</groupId>
+                <artifactId>vertx-stack-depchain</artifactId>
+                <version>${versions.vertx}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
+            <dependency>
+                <groupId>org.dhatim</groupId>
+                <artifactId>fastexcel</artifactId>
+                <version>${versions.fastexcel}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.dhatim</groupId>
+                <artifactId>fastexcel-reader</artifactId>
+                <version>${versions.fastexcel}</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>org.apache.commons</groupId>
+                        <artifactId>commons-lang3</artifactId>
+                    </exclusion>
+                </exclusions>
+            </dependency>
+            <!--    ONLY FOR VULNERABLE OVERRIDE    -->
+            <dependency>
+                <groupId>org.apache.commons</groupId>
+                <artifactId>commons-lang3</artifactId>
+                <version>3.20.0</version>
+                <scope>runtime</scope>
+            </dependency>
+
+            <!-- endregion -->
+            <!--region Overrides -->
+            <dependency>
+                <groupId>io.termd</groupId>
+                <artifactId>termd-core</artifactId>
+                <version>${versions.vertx-termd}</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>com.fasterxml.jackson.core</groupId>
+                        <artifactId>jackson-databind</artifactId>
+                    </exclusion>
+                </exclusions>
+            </dependency>
+
+            <!-- endregion -->
+            <!--region Test -->
+            <dependency>
+                <groupId>org.mockito</groupId>
+                <artifactId>mockito-core</artifactId>
+                <version>${versions.mockito}</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.mockito</groupId>
+                <artifactId>mockito-junit-jupiter</artifactId>
+                <version>${versions.mockito}</version>
+                <scope>test</scope>
+            </dependency>
+
+            <dependency>
+                <groupId>org.openjdk.jmh</groupId>
+                <artifactId>jmh-generator-annprocess</artifactId>
+                <version>${versions.jmh}</version>
+                <scope>test</scope>
+            </dependency>
+            <!-- endregion -->
+            <!--region BOM -->
+            <dependency>
+                <groupId>io.github.zenliucn.vertx.vat</groupId>
+                <artifactId>api</artifactId>
+                <version>${vat.versions}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.github.zenliucn.vertx.vat</groupId>
+                <artifactId>core</artifactId>
+                <version>${vat.versions}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.github.zenliucn.vertx.vat</groupId>
+                <artifactId>codegen</artifactId>
+                <version>${vat.versions}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.github.zenliucn.vertx.vat</groupId>
+                <artifactId>foundation-api</artifactId>
+                <version>${vat.versions}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.github.zenliucn.vertx.vat</groupId>
+                <artifactId>foundation-domain</artifactId>
+                <version>${vat.versions}</version>
+            </dependency>
+            <!-- endregion -->
+            <!-- region uses and runtimes-->
+            <dependency>
+                <groupId>io.github.zenliucn.vertx.vat</groupId>
+                <artifactId>use-foundation</artifactId>
+                <version>${vat.versions}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.github.zenliucn.vertx.vat</groupId>
+                <artifactId>use-cache</artifactId>
+                <version>${vat.versions}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.github.zenliucn.vertx.vat</groupId>
+                <artifactId>use-jwt</artifactId>
+                <version>${vat.versions}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.github.zenliucn.vertx.vat</groupId>
+                <artifactId>use-web</artifactId>
+                <version>${vat.versions}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.github.zenliucn.vertx.vat</groupId>
+                <artifactId>use-webclient</artifactId>
+                <version>${vat.versions}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.github.zenliucn.vertx.vat</groupId>
+                <artifactId>use-store</artifactId>
+                <version>${vat.versions}</version>
+            </dependency>
+            <!-- runtime -->
+            <dependency>
+                <groupId>io.github.zenliucn.vertx.vat</groupId>
+                <artifactId>runtime-node</artifactId>
+                <version>${vat.versions}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.github.zenliucn.vertx.vat</groupId>
+                <artifactId>runtime-foundation</artifactId>
+                <version>${vat.versions}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.github.zenliucn.vertx.vat</groupId>
+                <artifactId>runtime-mysql</artifactId>
+                <version>${vat.versions}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.github.zenliucn.vertx.vat</groupId>
+                <artifactId>runtime-postgres</artifactId>
+                <version>${vat.versions}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.github.zenliucn.vertx.vat</groupId>
+                <artifactId>runtime-telemetry</artifactId>
+                <version>${vat.versions}</version>
+            </dependency>
+            <!-- endregion -->
+        </dependencies>
+    </dependencyManagement>
+    <build>
+        <extensions>
+            <extension>
+                <groupId>kr.motd.maven</groupId>
+                <artifactId>os-maven-plugin</artifactId>
+                <version>${os-maven-plugin.version}</version>
+            </extension>
+        </extensions>
+        <pluginManagement>
+            <plugins>
+                <!--                build-helper-maven-plugin-->
+                <plugin>
+                    <groupId>org.codehaus.mojo</groupId>
+                    <artifactId>build-helper-maven-plugin</artifactId>
+                    <version>${build-helper-maven-plugin.version}</version>
+                    <executions>
+                        <execution>
+                            <id>config-project</id>
+                            <phase>initialize</phase>
+                            <goals>
+                                <goal>bsh-property</goal>
+                            </goals>
+                            <configuration>
+                                <source><![CDATA[
+pb(key,def){ var value = this.project.getProperties().getProperty(key); return value == null ? def : Boolean.parseBoolean(value);}
+nodeNoShade = !pb("node.shade",false);
+nodeShadeMinimal=pb("node.shade.minimal",false);
+nodeNoLibs =!pb("node.libs",false);
+nodeNoAssembly =!pb("node.assembly",false);
+nodeNoPreProc= nodeNoLibs @or nodeNoAssembly;
+maven.deploy.skip = !nodeNoShade @or !nodeNoLibs  @or !nodeNoAssembly;
+maven.install.skip = !nodeNoShade @or !nodeNoLibs @or !nodeNoAssembly;
+                                ]]>
+                                </source>
+                                <properties>
+                                    <!--  the module not to shade -->
+                                    <property>nodeNoShade</property>
+                                    <!--  the module not to package with libs -->
+                                    <property>nodeNoLibs</property>
+                                    <!--  the module not to pre-process with libs -->
+                                    <property>nodeNoPreProc</property>
+                                    <property>nodeShadeMinimal</property>
+                                    <property>nodeNoAssembly</property>
+                                    <property>maven.deploy.skip</property>
+                                    <property>maven.install.skip</property>
+                                </properties>
+                            </configuration>
+                        </execution>
+                    </executions>
+                </plugin>
+                <!--     maven-shade-plugin           -->
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-shade-plugin</artifactId>
+                    <version>${maven-shade-plugin.version}</version>
+                    <executions>
+                        <execution>
+                            <phase>package</phase>
+                            <goals>
+                                <goal>shade</goal>
+                            </goals>
+                        </execution>
+                    </executions>
+                    <configuration>
+                        <skip>${nodeNoShade}</skip>
+                        <minimizeJar>${nodeShadeMinimal}</minimizeJar>
+                        <filters>
+                            <filter>
+                                <artifact>*:*</artifact>
+                                <excludes>
+                                    <exclude>module-info.class</exclude>
+                                </excludes>
+                            </filter>
+                        </filters>
+                        <transformers>
+                            <transformer
+                                    implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                <manifestEntries>
+                                    <Main-Class>${launcher.class}</Main-Class>
+                                    <Main-Verticle>${launcher.verticle}</Main-Verticle>
+                                    <Automatic-Module-Name>${module.name}</Automatic-Module-Name>
+                                </manifestEntries>
+                            </transformer>
+                            <transformer
+                                    implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+                        </transformers>
+                        <outputFile>
+                            ${project.build.directory}/${project.artifactId}-${project.version}-fat.jar
+                        </outputFile>
+                    </configuration>
+                </plugin>
+                <!--  maven-jar-plugin              -->
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-jar-plugin</artifactId>
+                    <version>${maven-jar-plugin.version}</version>
+                    <configuration>
+                        <archive>
+                            <manifest>
+                                <addClasspath>${nodeNoLibs}</addClasspath>
+                                <classpathPrefix>libs/</classpathPrefix>
+                            </manifest>
+                            <manifestEntries>
+                                <Main-Class>${launcher.class}</Main-Class>
+                                <Main-Verticle>${launcher.verticle}</Main-Verticle>
+                                <Automatic-Module-Name>${module.name}</Automatic-Module-Name>
+                            </manifestEntries>
+                        </archive>
+                    </configuration>
+                </plugin>
+                <!--    maven-dependency-plugin-->
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-dependency-plugin</artifactId>
+                    <version>${maven-dependency-plugin.version}</version>
+                    <executions>
+                        <execution>
+                            <id>copy-dependencies</id>
+                            <phase>package</phase>
+                            <goals>
+                                <goal>copy-dependencies</goal>
+                            </goals>
+                            <configuration>
+                                <skip>${nodeNoLibs}</skip>
+                                <includeScope>runtime</includeScope>
+                                <outputDirectory>${project.build.directory}/libs</outputDirectory>
+                            </configuration>
+                        </execution>
+                    </executions>
+                </plugin>
+                <plugin>
+                    <groupId>org.codehaus.mojo</groupId>
+                    <artifactId>exec-maven-plugin</artifactId>
+                    <version>${exec-maven-plugin.version}</version>
+                    <executions>
+                        <execution>
+                            <id>patch_shell</id>
+                            <phase>package</phase>
+                            <goals>
+                                <goal>java</goal>
+                            </goals>
+                            <configuration>
+                                <skip>${nodeNoPreProc}</skip>
+                                <mainClass>core.utils.ShellJarPatcher</mainClass>
+                                <arguments>
+                                    <argument>${project.build.directory}/libs/vertx-shell-${versions.vertx}.jar
+                                    </argument>
+                                </arguments>
+                            </configuration>
+                        </execution>
+                    </executions>
+                </plugin>
+                <!--  maven-assembly-plugin -->
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-assembly-plugin</artifactId>
+                    <version>${maven-assembly-plugin.version}</version>
+                    <configuration>
+                        <skipAssembly>${nodeNoAssembly}</skipAssembly>
+                    </configuration>
+                </plugin>
+                <plugin>
+                    <groupId>org.xolstice.maven.plugins</groupId>
+                    <artifactId>protobuf-maven-plugin</artifactId>
+                    <version>${protobuf-maven-plugin.version}</version>
+                    <configuration>
+                        <!--suppress MavenModelInspection -->
+                        <protocArtifact>com.google.protobuf:protoc:${versions.protoc}:exe:${os.detected.classifier}
+                        </protocArtifact>
+                        <pluginId>grpc-java</pluginId>
+                        <!--suppress MavenModelInspection -->
+                        <pluginArtifact>io.grpc:protoc-gen-grpc-java:${versions.grpc}:exe:${os.detected.classifier}
+                        </pluginArtifact>
+                        <protocPlugins>
+                            <protocPlugin>
+                                <id>vertx-grpc-protoc-plugin2</id>
+                                <groupId>io.vertx</groupId>
+                                <artifactId>vertx-grpc-protoc-plugin2</artifactId>
+                                <version>${versions.vertx}</version>
+                                <mainClass>io.vertx.grpc.plugin.VertxGrpcGenerator</mainClass>
+                            </protocPlugin>
+                        </protocPlugins>
+                    </configuration>
+                    <executions>
+                        <execution>
+                            <id>generate-protobuf</id>
+                            <phase>generate-sources</phase>
+                            <goals>
+                                <goal>compile</goal>
+                                <goal>compile-custom</goal>
+                                <goal>test-compile</goal>
+                                <goal>test-compile-custom</goal>
+                            </goals>
+                        </execution>
+
+                    </executions>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-compiler-plugin</artifactId>
+                    <version>${maven-compiler-plugin.version}</version>
+                    <configuration>
+                        <compilerArgs>
+                            <compilerArg>-parameters</compilerArg>
+                            <compilerArg>-proc:full</compilerArg>
+                        </compilerArgs>
+                    </configuration>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+        <plugins>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>build-helper-maven-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-assembly-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <version>3.2.0</version>
+                <configuration>
+                    <ignoreClirr>true</ignoreClirr>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+    <dependencies>
+        <!--region Marker -->
+        <dependency>
+            <groupId>org.jetbrains</groupId>
+            <artifactId>annotations</artifactId>
+            <optional>true</optional>
+            <scope>provided</scope>
+        </dependency>
+        <!-- endregion -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.google.auto.service</groupId>
+            <artifactId>auto-service</artifactId>
+            <optional>true</optional>
+            <scope>provided</scope>
+        </dependency>
+        <!-- endregion -->
+
+        <!--region TEST -->
+        <dependency>
+            <groupId>io.vertx</groupId>
+            <artifactId>vertx-junit5</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- endregion -->
+    </dependencies>
+
+</project>

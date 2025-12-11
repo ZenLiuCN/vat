@@ -1,0 +1,23 @@
+CREATE TABLE IF NOT EXISTS `foundation_audits_audit` (
+	`removed` BOOLEAN NOT NULL DEFAULT FALSE,
+	`creator` BIGINT NOT NULL DEFAULT -1,
+	`created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	`modifier` BIGINT NOT NULL DEFAULT -1,
+	`modified_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
+	`id` BIGINT AUTO_INCREMENT PRIMARY KEY,
+	`version` INT NOT NULL DEFAULT 0,
+	`history` JSON,
+	`topic` VARCHAR(255) NOT NULL,
+	`request` JSON,
+	`response` JSON,
+	`status` INT NOT NULL,
+	`actor` BIGINT NOT NULL,
+	`reported` BIGINT NOT NULL,
+	`audited` BIGINT NOT NULL,
+	`auditor` BIGINT NOT NULL,
+	`result` INT NOT NULL,
+	`comment` TEXT NOT NULL,
+	INDEX `idx_foundation_audits_audit-result` (`result`),
+	INDEX `idx_foundation_audits_audit-topic` (`topic`),
+	INDEX `idx_foundation_audits_audit-status` (`status`)
+);

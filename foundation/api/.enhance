@@ -1,0 +1,6 @@
+codegen {
+    ddl {
+        mysql:true
+        postgres:true
+    }
+}
