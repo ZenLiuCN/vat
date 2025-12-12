@@ -10,7 +10,7 @@
     </parent>
     <groupId>io.github.zenliucn.vertx.vat</groupId>
     <artifactId>use-foundation</artifactId>
-    <description>use foundation</description>
+    <description>foundation model dependencies package</description>
     <dependencies>
         <dependency>
             <groupId>io.github.zenliucn.vertx.vat</groupId>

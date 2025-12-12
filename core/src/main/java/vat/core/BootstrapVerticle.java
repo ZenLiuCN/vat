@@ -50,12 +50,12 @@ public class BootstrapVerticle extends VerticleBase {
         this("app.conf", "retriever");
     }
 
-    protected  volatile ConfigRetriever local;
+    protected volatile ConfigRetriever local;
     protected volatile ConfigRetriever remote;
     static final Pointer disabled = Pointer.of("/disabled");
     volatile DeployManager dm;
 
-    protected  record DeployManager(
+    protected record DeployManager(
             Vertx vertx,
             ReentrantLock lock,
             Map<String, ActivityFactory> deployed,
@@ -79,7 +79,7 @@ public class BootstrapVerticle extends VerticleBase {
             }
         }
 
-        public void redeploy(JsonObject conf) {
+        public void redeploy(JsonObject conf, JsonObject pre) {
             if (!deployable.isEmpty()) {
                 if (!lock.tryLock()) {
                     log.warn("deploying, skip update of {}", conf);
@@ -87,7 +87,13 @@ public class BootstrapVerticle extends VerticleBase {
                 }
                 var redo = deployable.stream().filter(ActivityFactory::auto).toList();
                 Future.join(redo.stream().map(this::undeploy).toList())
-                        .flatMap($_ -> Future.join(redo.stream().map(x -> deploy(x, conf)).toList()))
+                        .flatMap($_ -> Future.join(redo.stream()
+                                .filter(x ->
+                                        !conf.getJsonObject(x.domain()).equals(pre.getJsonObject(x.domain()))
+                                        && conf.getJsonObject(x.domain())!=null
+                                )
+                                .map(x -> deploy(x, conf))
+                                .toList()))
                         .onComplete(r -> {
                             if (r.succeeded()) log.info("redeployed for configuration update");
                             else log.error("redeployed for configuration update", r.cause());
@@ -97,7 +103,7 @@ public class BootstrapVerticle extends VerticleBase {
             }
         }
 
-        protected  Future<Void> deploy(ActivityFactory x, JsonObject newc) {
+        protected Future<Void> deploy(ActivityFactory x, JsonObject newc) {
             return vertx.deployVerticle(x.make(newc))
                     .onSuccess(id -> {
                         deployed.put(id, x);
@@ -162,7 +168,7 @@ public class BootstrapVerticle extends VerticleBase {
     private void onRemoteChange(ConfigChange configChange) {
         var newc = configChange.getNewConfiguration();
         if (newc != null) {
-            dm.redeploy(newc);
+            dm.redeploy(newc, configChange.getPreviousConfiguration());
         }
     }
 
@@ -173,7 +179,7 @@ public class BootstrapVerticle extends VerticleBase {
         }
         var newc = configChange.getNewConfiguration();
         if (newc != null) {
-            dm.redeploy(newc);
+            dm.redeploy(newc, configChange.getPreviousConfiguration());
         }
     }
 

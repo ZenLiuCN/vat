@@ -113,7 +113,6 @@
     </properties>
     <groupId>io.github.zenliucn.vertx</groupId>
     <artifactId>vat</artifactId>
-    <name>Vertx Applicative Toolkit</name>
     <version>1.0-SNAPSHOT</version>
     <profiles>
         <profile>
@@ -856,5 +855,29 @@ maven.install.skip = !nodeNoShade @or !nodeNoLibs @or !nodeNoAssembly;
         </dependency>
         <!-- endregion -->
     </dependencies>
-
+    <!-- region maven central -->
+    <name>Vertx Applicative Toolkit</name>
+    <url>https://github.com/ZenLiuCN/vat</url>
+    <developers>
+        <developer>
+            <name>Zen Liu</name>
+            <email>lcz20@163.com</email>
+            <organization>ZenLiu</organization>
+            <organizationUrl>https://github.com/ZenLiuCN</organizationUrl>
+            <timezone>+8</timezone>
+        </developer>
+    </developers>
+    <scm>
+        <connection>scm:git:git@github.com:ZenLiuCN/vat.git</connection>
+        <url>scm:git:git@github.com:ZenLiuCN/vat.git</url>
+        <developerConnection>scm:git:git@github.com:ZenLiuCN/vat.git</developerConnection>
+    </scm>
+    <licenses>
+        <license>
+            <name>GNU General Public License, version 2, with Classpath exception</name>
+            <url>https://openjdk.org/legal/gplv2+ce.html</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+    <!-- endregion maven central -->
 </project>

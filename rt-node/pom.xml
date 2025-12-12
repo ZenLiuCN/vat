@@ -11,6 +11,7 @@
 
     <groupId>io.github.zenliucn.vertx.vat</groupId>
     <artifactId>runtime-node</artifactId>
+    <description>application node runtime dependencies package</description>
     <dependencies>
         <dependency>
             <groupId>io.vertx</groupId>

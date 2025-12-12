@@ -11,6 +11,7 @@
 
     <groupId>io.github.zenliucn.vertx.vat</groupId>
     <artifactId>use-store</artifactId>
+    <description>store dependencies package</description>
     <dependencies>
         <dependency>
             <groupId>io.vertx</groupId>

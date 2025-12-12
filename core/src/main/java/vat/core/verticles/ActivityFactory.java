@@ -17,10 +17,13 @@ import java.lang.reflect.Constructor;
 /// @author Zen.Liu
 /// @since 2025-11-11
 public interface ActivityFactory {
+    /// activities mode
     int mode();
 
+    /// auto redeploy
     boolean auto();
 
+    /// canonical name of activities implement.
     String name();
 
     /// domain simple name used as configuration key
@@ -38,21 +41,23 @@ public interface ActivityFactory {
 
     @SneakyThrows
     static ActivityFactory decide(int mode, boolean auto, Class<? extends Activities> t) {
-        var ctor = find(t, Vertx.class,String.class);
-        if (ctor != null) return new F1.Impl(mode, auto, t.getCanonicalName(), DomainManager.domain(t), ctor::newInstance);
-        ctor = find(t, Vertx.class,String.class, JsonObject.class);
-        if (ctor != null) return new F2.Impl(mode, auto, t.getCanonicalName(), DomainManager.domain(t), ctor::newInstance);
-        ctor = find(t, Vertx.class,String.class, Web.Factory.class, JsonObject.class);
-        if (ctor != null) return new F3.Impl(mode, auto, t.getCanonicalName(),  DomainManager.domain(t),ctor::newInstance);
-        ctor = find(t, Vertx.class,String.class, Pool.class, Dialect.class, JsonObject.class);
-        if (ctor != null) return new F4.Impl(mode, auto, t.getCanonicalName(), DomainManager.domain(t), ctor::newInstance);
-        ctor = find(t, Vertx.class,String.class,Web.Factory.class, Pool.class, Dialect.class,  JsonObject.class);
-        if (ctor != null) return new F5.Impl(mode, auto, t.getCanonicalName(), DomainManager.domain(t), ctor::newInstance);
+        var ctor = find(t, Vertx.class, String.class);
+        if (ctor != null)
+            return new F1.Impl(mode, auto, t.getCanonicalName(), DomainManager.domain(t), ctor::newInstance);
+        ctor = find(t, Vertx.class, String.class, JsonObject.class);
+        if (ctor != null)
+            return new F2.Impl(mode, auto, t.getCanonicalName(), DomainManager.domain(t), ctor::newInstance);
+        ctor = find(t, Vertx.class, String.class, Web.Factory.class, JsonObject.class);
+        if (ctor != null)
+            return new F3.Impl(mode, auto, t.getCanonicalName(), DomainManager.domain(t), ctor::newInstance);
+        ctor = find(t, Vertx.class, String.class, Pool.class, Dialect.class, JsonObject.class);
+        if (ctor != null)
+            return new F4.Impl(mode, auto, t.getCanonicalName(), DomainManager.domain(t), ctor::newInstance);
+        ctor = find(t, Vertx.class, String.class, Web.Factory.class, Pool.class, Dialect.class, JsonObject.class);
+        if (ctor != null)
+            return new F5.Impl(mode, auto, t.getCanonicalName(), DomainManager.domain(t), ctor::newInstance);
         throw DomainError.System.internalServerError("invalid {} constructor signature", t);
     }
-
-
-
 
 
 }

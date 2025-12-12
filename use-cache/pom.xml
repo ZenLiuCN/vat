@@ -11,7 +11,7 @@
 
     <groupId>io.github.zenliucn.vertx.vat</groupId>
     <artifactId>use-cache</artifactId>
-    <description>use caffeine cache</description>
+    <description>caffeine cache dependencies package</description>
     <dependencies>
         <dependency>
             <groupId>com.github.ben-manes.caffeine</groupId>

@@ -14,7 +14,7 @@
     </properties>
     <groupId>io.github.zenliucn.vertx.vat</groupId>
     <artifactId>foundation</artifactId>
-    <description>base domain</description>
+    <description>foundation models with User and Audit</description>
     <packaging>pom</packaging>
     <modules>
         <module>api</module>

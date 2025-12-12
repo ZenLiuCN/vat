@@ -11,7 +11,7 @@
 
     <groupId>io.github.zenliucn.vertx.vat</groupId>
     <artifactId>runtime-mysql</artifactId>
-    <description>runtime mysql</description>
+    <description>mysql database runtime dependencies package</description>
     <dependencies>
         <dependency>
             <groupId>io.github.zenliucn.vertx.vat</groupId>

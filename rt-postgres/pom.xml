@@ -11,7 +11,7 @@
 
     <groupId>io.github.zenliucn.vertx.vat</groupId>
     <artifactId>runtime-postgres</artifactId>
-    <description>runtime postgres</description>
+    <description>postgres database runtime dependencies package</description>
     <dependencies>
         <dependency>
             <groupId>io.github.zenliucn.vertx.vat</groupId>

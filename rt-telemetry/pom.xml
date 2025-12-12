@@ -11,7 +11,7 @@
 
     <groupId>io.github.zenliucn.vertx.vat</groupId>
     <artifactId>runtime-telemetry</artifactId>
-    <description>runtime telemetry</description>
+    <description>telemetry runtime dependencies package</description>
     <dependencies>
         <dependency>
             <groupId>io.vertx</groupId>

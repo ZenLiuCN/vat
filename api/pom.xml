@@ -15,7 +15,7 @@
     <groupId>io.github.zenliucn.vertx.vat</groupId>
     <artifactId>api</artifactId>
     <name>api</name>
-    <description>base api</description>
+    <description>core api for declare models</description>
     <dependencies>
         <dependency>
             <groupId>org.slf4j</groupId>

@@ -15,7 +15,7 @@
     <groupId>io.github.zenliucn.vertx.vat</groupId>
     <artifactId>core</artifactId>
     <name>core</name>
-    <description>runtime core</description>
+    <description>runtime core with implements utilities.</description>
     <dependencies>
         <dependency>
             <groupId>io.github.zenliucn.vertx.vat</groupId>
