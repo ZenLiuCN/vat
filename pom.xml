@@ -36,7 +36,7 @@
         <deployAtEnd>true</deployAtEnd>
 
         <!-- endregion -->
-
+        <skip.javadoc>true</skip.javadoc>
         <!--region Maven Plugins -->
         <maven-compiler-plugin.version>3.11.0</maven-compiler-plugin.version>
         <maven-shade-plugin.version>3.5.0</maven-shade-plugin.version>
@@ -120,16 +120,15 @@
             <activation>
                 <activeByDefault>false</activeByDefault>
             </activation>
+            <properties>
+                <skip.javadoc>false</skip.javadoc>
+            </properties>
             <build>
                 <plugins>
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-source-plugin</artifactId>
                         <version>3.1.0</version>
-                    </plugin>
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-javadoc-plugin</artifactId>
                     </plugin>
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
@@ -351,7 +350,7 @@
                     </exclusion>
                 </exclusions>
             </dependency>
-            <!--    ONLY FOR VULNERABLE OVERRIDE    -->
+            <!--  !  ONLY FOR VULNERABLE OVERRIDE    -->
             <dependency>
                 <groupId>org.apache.commons</groupId>
                 <artifactId>commons-lang3</artifactId>
@@ -362,6 +361,19 @@
             <!-- endregion -->
 
             <!--region Overrides -->
+            <!-- ! Patch for SSHD conflict-->
+            <dependency>
+
+                <groupId>io.vertx</groupId>
+                <artifactId>vertx-shell</artifactId>
+                <version>${versions.vertx}</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>org.apache.sshd</groupId>
+                        <artifactId>sshd-common</artifactId>
+                    </exclusion>
+                </exclusions>
+            </dependency>
             <dependency>
                 <groupId>io.termd</groupId>
                 <artifactId>termd-core</artifactId>
@@ -372,16 +384,6 @@
                         <artifactId>jackson-databind</artifactId>
                     </exclusion>
                 </exclusions>
-            </dependency>
-            <dependency>
-                <groupId>org.apache.sshd</groupId>
-                <artifactId>sshd-common</artifactId>
-                <version>2.16.0</version>
-            </dependency>
-            <dependency>
-                <groupId>org.apache.sshd</groupId>
-                <artifactId>sshd-core</artifactId>
-                <version>2.16.0</version>
             </dependency>
             <!-- endregion -->
 
@@ -522,27 +524,6 @@
                     <configuration>
                         <excludeResources>true</excludeResources>
                         <useDefaultExcludes>true</useDefaultExcludes>
-                    </configuration>
-                </plugin>
-                <plugin>
-                    <groupId>org.apache.maven.plugins</groupId>
-                    <artifactId>maven-javadoc-plugin</artifactId>
-                    <version>3.2.0</version>
-                    <inherited>true</inherited>
-                    <executions>
-                        <execution>
-                            <id>attach-javadocs</id>
-                            <goals>
-                                <goal>jar</goal>
-                            </goals>
-                        </execution>
-                    </executions>
-                    <configuration>
-                        <maxmemory>1024</maxmemory>
-                        <encoding>UTF-8</encoding>
-                        <show>protected</show>
-                        <notree>true</notree>
-                        <additionalOptions>-Xdoclint:none</additionalOptions>
                     </configuration>
                 </plugin>
                 <plugin>
