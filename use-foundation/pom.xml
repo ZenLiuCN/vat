@@ -10,6 +10,7 @@
     </parent>
     <groupId>io.github.zenliucn.vertx.vat</groupId>
     <artifactId>use-foundation</artifactId>
+    <name>Foundation cache component</name>
     <description>foundation model dependencies package</description>
     <dependencies>
         <dependency>

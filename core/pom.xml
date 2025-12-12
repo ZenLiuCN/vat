@@ -16,6 +16,24 @@
     <artifactId>core</artifactId>
     <name>core</name>
     <description>runtime core with implements utilities.</description>
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <version>${maven-javadoc-plugin.version}</version>
+                <inherited>true</inherited>
+                <configuration>
+                    <sourceFileExcludes>
+                        <sourceFileExclude>**\/TracingHolder\.java</sourceFileExclude>
+                    </sourceFileExcludes>
+                    <additionalJOptions>
+                        <additionalJOption>-J--add-exports=io.vertx.tracing.opentelemetry/io.vertx.tracing.opentelemetry=ALL-UNNAMED</additionalJOption>
+                    </additionalJOptions>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
     <dependencies>
         <dependency>
             <groupId>io.github.zenliucn.vertx.vat</groupId>

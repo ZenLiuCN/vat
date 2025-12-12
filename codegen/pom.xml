@@ -14,7 +14,8 @@
     </properties>
     <groupId>io.github.zenliucn.vertx.vat</groupId>
     <artifactId>codegen</artifactId>
-
+    <name>CodeGenerator</name>
+    <description>enhance code generator</description>
     <dependencies>
         <dependency>
             <groupId>io.github.zenliucn.vertx.vat</groupId>

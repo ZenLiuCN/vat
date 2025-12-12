@@ -11,6 +11,7 @@
 
     <groupId>io.github.zenliucn.vertx.vat</groupId>
     <artifactId>use-web</artifactId>
+    <name>Web server component</name>
     <description>web server dependencies package</description>
     <dependencies>
         <dependency>

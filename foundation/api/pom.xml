@@ -13,6 +13,8 @@
         <module.name>vat.foundation.api</module.name>
     </properties>
     <artifactId>foundation-api</artifactId>
+    <name>Foundation api</name>
+    <description>Foundation domain api</description>
     <dependencies>
         <dependency>
             <groupId>io.github.zenliucn.vertx.vat</groupId>

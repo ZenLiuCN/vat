@@ -13,6 +13,8 @@
         <module.name>vat.foundation.domain</module.name>
     </properties>
     <artifactId>foundation-domain</artifactId>
+    <name>Foundation domain</name>
+    <description>Foundation domain</description>
     <dependencies>
         <dependency>
             <groupId>io.github.zenliucn.vertx.vat</groupId>

@@ -699,21 +699,20 @@ public interface Excels {
                 Styler styler,
                 List<Property<?>> properties) implements SheetData<T> {
 
-
             public static class SheetWriterBuilder<T extends Data> {
-                SheetWriterBuilder<T> property(UnaryOperator<Property.PropertyBuilder<?>> prop) {
+                public SheetWriterBuilder<T> property(UnaryOperator<Property.PropertyBuilder<?>> prop) {
                     var op = new ArrayList<>(properties == null ? List.of() : properties);
                     op.add(prop.apply(Property.builder().index(properties.size())).build());
                     return properties(op);
                 }
 
-                SheetWriterBuilder<T> property(Supplier<Property<?>> prop) {
+                public SheetWriterBuilder<T> property(Supplier<Property<?>> prop) {
                     var op = new ArrayList<>(properties == null ? List.of() : properties);
                     op.add(prop.get());
                     return properties(op);
                 }
 
-                SheetWriterBuilder<T> style(UnaryOperator<StylerBuilder> prop) {
+                public SheetWriterBuilder<T> style(UnaryOperator<StylerBuilder> prop) {
                     return styler(prop.apply(ExcelWriter.styler()).build());
                 }
             }
@@ -752,7 +751,7 @@ public interface Excels {
         AtomicReference<String> APPLICATION = new AtomicReference<>("vat");
         AtomicReference<String> VERSION = new AtomicReference<>("1.0");
 
-        @Builder
+
         record Property<T>(
                 @With String caption,
                 @With String name,
@@ -761,6 +760,53 @@ public interface Excels {
                 Codec.DataProperty<T> codec
         ) implements PropertyData<T> {
 
+            public static <T> PropertyBuilder<T> builder() {
+                return new PropertyBuilder<T>();
+            }
+
+            public static class PropertyBuilder<T> {
+                private String caption;
+                private String name;
+                private int index;
+                private ExcelWriter<T> writer;
+                private Codec.DataProperty<T> codec;
+
+                PropertyBuilder() {
+                }
+
+                public PropertyBuilder<T> caption(String caption) {
+                    this.caption = caption;
+                    return this;
+                }
+
+                public PropertyBuilder<T> name(String name) {
+                    this.name = name;
+                    return this;
+                }
+
+                public PropertyBuilder<T> index(int index) {
+                    this.index = index;
+                    return this;
+                }
+
+                public PropertyBuilder<T> writer(ExcelWriter<T> writer) {
+                    this.writer = writer;
+                    return this;
+                }
+
+                public PropertyBuilder<T> codec(Codec.DataProperty<T> codec) {
+                    this.codec = codec;
+                    return this;
+                }
+
+                public Property<T> build() {
+                    return new Property<T>(this.caption, this.name, this.index, this.writer, this.codec);
+                }
+
+                public String toString() {
+                    return "Excels.ExcelWriter.Property.PropertyBuilder(caption=" + this.caption + ", name=" + this.name + ", index=" + this.index + ", writer=" + this.writer + ", codec=" + this.codec + ")";
+                }
+            }
         }
 
         enum BOOLEAN_TEXT {
@@ -969,9 +1015,9 @@ public interface Excels {
                 public ExcelData.Property<T> build() {
                     return new ExcelData.Property<>(
                             Fn.nonBlank(caption), Fn.nonBlank(name), index,
-                            Objects.requireNonNull( writer,"missing  writer"),
-                            Objects.requireNonNull(reader,"missing reader"),
-                            Objects.requireNonNull(codec, "missing codec"),defaultValue);
+                            Objects.requireNonNull(writer, "missing  writer"),
+                            Objects.requireNonNull(reader, "missing reader"),
+                            Objects.requireNonNull(codec, "missing codec"), defaultValue);
                 }
             }
 
