@@ -1391,7 +1391,7 @@ import org.jetbrains.annotations.Nullable;
 import vat.api.*;
 import vat.api.Record;
 import vat.api.meta.*;
-import vat.api.trait.Entry;
+import vat.api.Entity.Entry;
 import vat.api.trait.History;
 import vat.api.utils.Fn;
 

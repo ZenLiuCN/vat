@@ -21,7 +21,7 @@ jobs:
       - name: release
         run: |
           mvn versions:set -DnewVersion=$GITHUB_REF_NAME 
-          mvn -B package -Dvat.versions=$GITHUB_REF_NAME -D skipTests --file pom.xml --no-transfer-progress && mvn deploy --no-transfer-progress
+          mvn -B package -Dvat.versions=$GITHUB_REF_NAME -DskipTests -Pcentral --file pom.xml --no-transfer-progress && mvn deploy --no-transfer-progress
         env:
           MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
           MAVEN_PASSWORD: ${{ secrets.OSSRH_TOKEN }}
