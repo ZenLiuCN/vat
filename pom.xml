@@ -529,6 +529,8 @@
                         <show>protected</show>
                         <notree>true</notree>
                         <additionalOptions>-Xdoclint:none</additionalOptions>
+                        <detectJavaApiLink>false</detectJavaApiLink>
+                        <additionalJOption>--add-exports java.base/jdk.internal.reflect=ALL-UNNAMED</additionalJOption>
                     </configuration>
                 </plugin>
                 <plugin>
