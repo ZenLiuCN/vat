@@ -878,6 +878,7 @@ maven.install.skip = !nodeNoShade @or !nodeNoLibs @or !nodeNoAssembly;
     </dependencies>
     <!-- region maven central -->
     <name>Vertx Applicative Toolkit</name>
+    <description>Vertx Applicative Toolkit</description>
     <url>https://github.com/ZenLiuCN/vat</url>
     <developers>
         <developer>
