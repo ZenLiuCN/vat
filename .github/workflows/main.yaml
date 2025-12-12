@@ -21,9 +21,7 @@ jobs:
       - name: release
         run: |
           mvn versions:set -DnewVersion=$GITHUB_REF_NAME && \
-          NEW_VERSION=$GITHUB_REF_NAME && \
-          sed -i 's|<vat.version>\${project.version}</vat.version>|<vat.version>$NEW_VERSION</vat.version>|g' pom.xml && \
-          cat pom.xml &&\
+          sed -i 's|<vat.version>\${project.version}</vat.version>|<vat.version>'"$GITHUB_REF_NAME"'</vat.version>|g' pom.xml && \
           mvn -B package -DskipTests -Pcentral --file pom.xml --no-transfer-progress && \
           mvn deploy -DskipTests -Pcentral --no-transfer-progress
         env:
