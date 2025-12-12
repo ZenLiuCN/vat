@@ -10,7 +10,7 @@
     </parent>
 
     <properties>
-        <module.name>activate.core</module.name>
+        <module.name>vat.core</module.name>
     </properties>
     <groupId>io.github.zenliucn.vertx.vat</groupId>
     <artifactId>core</artifactId>
@@ -27,11 +27,6 @@
         </dependency>
 
         <!--region Node -->
-        <dependency>
-            <groupId>io.vertx</groupId>
-            <artifactId>vertx-config</artifactId>
-            <scope>provided</scope>
-        </dependency>
         <dependency>
             <groupId>io.vertx</groupId>
             <artifactId>vertx-config-hocon</artifactId>
@@ -92,6 +87,7 @@
             <scope>provided</scope>
         </dependency>
         <!--endregion -->
+
         <!--region  telemetry -->
         <dependency>
             <groupId>io.vertx</groupId>

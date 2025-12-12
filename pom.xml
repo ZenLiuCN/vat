@@ -360,6 +360,7 @@
             </dependency>
 
             <!-- endregion -->
+
             <!--region Overrides -->
             <dependency>
                 <groupId>io.termd</groupId>
@@ -372,8 +373,18 @@
                     </exclusion>
                 </exclusions>
             </dependency>
-
+            <dependency>
+                <groupId>org.apache.sshd</groupId>
+                <artifactId>sshd-common</artifactId>
+                <version>2.16.0</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.sshd</groupId>
+                <artifactId>sshd-core</artifactId>
+                <version>2.16.0</version>
+            </dependency>
             <!-- endregion -->
+
             <!--region Test -->
             <dependency>
                 <groupId>org.mockito</groupId>
@@ -395,7 +406,9 @@
                 <scope>test</scope>
             </dependency>
             <!-- endregion -->
+
             <!--region BOM -->
+            <!--region Components -->
             <dependency>
                 <groupId>io.github.zenliucn.vertx.vat</groupId>
                 <artifactId>api</artifactId>
@@ -480,6 +493,7 @@
                 <version>${vat.versions}</version>
             </dependency>
             <!-- endregion -->
+            <!-- endregion -->
         </dependencies>
     </dependencyManagement>
     <build>
@@ -529,8 +543,6 @@
                         <show>protected</show>
                         <notree>true</notree>
                         <additionalOptions>-Xdoclint:none</additionalOptions>
-                        <detectJavaApiLink>false</detectJavaApiLink>
-<!--                        <additionalJOption>&#45;&#45;add-exports java.base/jdk.internal.reflect=ALL-UNNAMED</additionalJOption>-->
                     </configuration>
                 </plugin>
                 <plugin>
