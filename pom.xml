@@ -96,7 +96,7 @@
         <!--endregion -->
 
         <!--region Configuration -->
-        <vat.versions>1.0-SNAPSHOT</vat.versions>
+        <vat.versions>${project.version}</vat.versions>
         <launcher.class>vat.core.AbstractLauncher</launcher.class>
         <launcher.verticle>vat.core.BootstrapVerticle</launcher.verticle>
         <module.name>vat</module.name>
@@ -206,7 +206,6 @@
                 </dependency>
             </dependencies>
         </profile>
-
     </profiles>
     <dependencyManagement>
         <dependencies>
