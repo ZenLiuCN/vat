@@ -108,7 +108,7 @@
          <node.assembly>false</node.libs>
          -->
         <!-- endregion -->
-        <vat.version>0.0.3-EA</vat.version>
+        <vat.version>${project.version}</vat.version>
 
     </properties>
     <groupId>io.github.zenliucn.vertx</groupId>
