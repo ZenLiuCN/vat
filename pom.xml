@@ -108,7 +108,7 @@
          <node.assembly>false</node.libs>
          -->
         <!-- endregion -->
-
+        <vat.version>0.0.3-EA</vat.version>
 
     </properties>
     <groupId>io.github.zenliucn.vertx</groupId>
@@ -414,86 +414,86 @@
             <dependency>
                 <groupId>io.github.zenliucn.vertx.vat</groupId>
                 <artifactId>codegen</artifactId>
-                <version>${project.version}</version>
+                <version>${vat.version}</version>
                 <scope>provided</scope>
             </dependency>
             <dependency>
                 <groupId>io.github.zenliucn.vertx.vat</groupId>
                 <artifactId>api</artifactId>
-                <version>${project.version}</version>
+                <version>${vat.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.github.zenliucn.vertx.vat</groupId>
                 <artifactId>core</artifactId>
-                <version>${project.version}</version>
+                <version>${vat.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.github.zenliucn.vertx.vat</groupId>
                 <artifactId>foundation-api</artifactId>
-                <version>${project.version}</version>
+                <version>${vat.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.github.zenliucn.vertx.vat</groupId>
                 <artifactId>foundation-domain</artifactId>
-                <version>${project.version}</version>
+                <version>${vat.version}</version>
             </dependency>
             <!-- endregion -->
             <!-- region uses and runtimes-->
             <dependency>
                 <groupId>io.github.zenliucn.vertx.vat</groupId>
                 <artifactId>use-foundation</artifactId>
-                <version>${project.version}</version>
+                <version>${vat.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.github.zenliucn.vertx.vat</groupId>
                 <artifactId>use-cache</artifactId>
-                <version>${project.version}</version>
+                <version>${vat.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.github.zenliucn.vertx.vat</groupId>
                 <artifactId>use-jwt</artifactId>
-                <version>${project.version}</version>
+                <version>${vat.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.github.zenliucn.vertx.vat</groupId>
                 <artifactId>use-web</artifactId>
-                <version>${project.version}</version>
+                <version>${vat.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.github.zenliucn.vertx.vat</groupId>
                 <artifactId>use-webclient</artifactId>
-                <version>${project.version}</version>
+                <version>${vat.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.github.zenliucn.vertx.vat</groupId>
                 <artifactId>use-store</artifactId>
-                <version>${project.version}</version>
+                <version>${vat.version}</version>
             </dependency>
             <!-- runtime -->
             <dependency>
                 <groupId>io.github.zenliucn.vertx.vat</groupId>
                 <artifactId>runtime-node</artifactId>
-                <version>${project.version}</version>
+                <version>${vat.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.github.zenliucn.vertx.vat</groupId>
                 <artifactId>runtime-foundation</artifactId>
-                <version>${project.version}</version>
+                <version>${vat.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.github.zenliucn.vertx.vat</groupId>
                 <artifactId>runtime-mysql</artifactId>
-                <version>${project.version}</version>
+                <version>${vat.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.github.zenliucn.vertx.vat</groupId>
                 <artifactId>runtime-postgres</artifactId>
-                <version>${project.version}</version>
+                <version>${vat.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.github.zenliucn.vertx.vat</groupId>
                 <artifactId>runtime-telemetry</artifactId>
-                <version>${project.version}</version>
+                <version>${vat.version}</version>
             </dependency>
             <!-- endregion -->
             <!-- endregion -->
