@@ -171,7 +171,8 @@ public class UsersImpl extends UsersDomain<UsersImpl> {
         return Future.succeededFuture()
                 .map(Optional.ofNullable(CertificateProvider.PROVIDERS.get(kind)))
                 .map(Fn.Maybe.orElseThrow(this::unsupportedKind))
-                .flatMap(c -> certs(tx).any(
+                .flatMap(c -> certs(tx)
+                        .any(
                                 t -> t.kind().eq(kind).and(t.identifier().eq(identifier))
                                 , (t, q) -> q.pick(t.id(), t.version(), t.user(), t.certificate()).maybe())
                         .map(CertEntry.OF)

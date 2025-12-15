@@ -64,11 +64,11 @@ public class JwtHandlerFactory implements ComponentFactory<Authenticator> {
                     var locator = locator(conf);
                     var authority = Pointer.of("/authority").getBoolean(conf).orElse(false);
                     if (key != null && authority) {
-                        p.complete(new Authenticator.Generator<>(locator, new Authenticator.OpenIDJwt(vertx, JWTAuth.create(vertx, opt), key, opt)));
+                        p.complete(new Authenticator.Generator<>(0,locator, new Authenticator.OpenIDJwt(vertx, JWTAuth.create(vertx, opt), key, opt)));
                     } else if (key != null) {
-                        p.complete(new Authenticator.Validator(locator, new Authenticator.OpenIDJwt(vertx, JWTAuth.create(vertx, opt), key, opt)));
+                        p.complete(new Authenticator.Validator(0,locator, new Authenticator.OpenIDJwt(vertx, JWTAuth.create(vertx, opt), key, opt)));
                     } else {
-                        p.complete(new Authenticator.Validator(locator, JWTAuth.create(vertx, opt)));
+                        p.complete(new Authenticator.Validator(0,locator, JWTAuth.create(vertx, opt)));
                     }
                 }
                 case KIND_CUSTOMER -> {

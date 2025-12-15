@@ -37,17 +37,42 @@ import java.util.function.Function;
 
 public interface Authenticator {
     Logger log = LoggerFactory.getLogger(Authenticator.class);
+    String USER_ID = "_AUTH_USER_ID";
+    String USER_CERT_KIND = "_AUTH_CERT_KIND";
+    String ANONYMOUS_USER_KEY = "anonymous";
 
+    static boolean isAnonymous(User user) {
+        return user.containsKey(ANONYMOUS_USER_KEY);
+    }
+
+    static Optional<Long> userIdentity(User user) {
+        return Optional.ofNullable(user.attributes().getLong(USER_ID));
+    }
+
+    static Optional<Integer> userCertificateKind(User user) {
+        return Optional.ofNullable(user.attributes().getInteger(USER_CERT_KIND));
+    }
+
+    /// unique authenticator kind, should never be -1.
+    /// + 0: built-in JWT model.
+    int kind();
+    default User injection(RoutingContext c,User u){
+        u.attributes().put(USER_CERT_KIND,kind());
+        return Authenticator.inject(c,u);
+    }
     /// A customer authenticator
     interface Customer extends Authenticator {
+
         /// Initialize this Authenticator, this will invoke before activities been created.
-        /// @param config configuration at `/DOMAIN/authenticator`
+        ///
+        /// @param config  configuration at `/DOMAIN/authenticator`
         /// @param locator configure  Token reader
-        Customer initialize(Vertx vertx, TokenReader locator,@Nullable JsonObject config);
+        Customer initialize(Vertx vertx, TokenReader locator, @Nullable JsonObject config);
+
         /// Optional authenticator may allow user to access as anonymous user.
         Future<Optional<User>> optional(RoutingContext ctx);
-        Future<User> required(RoutingContext ctx);
 
+        Future<User> required(RoutingContext ctx);
 
 
         @Override
@@ -57,20 +82,20 @@ public interface Authenticator {
 
         @Override
         default SimpleAuthenticationHandler authenticate() {
-            return SimpleAuthenticationHandler.create().authenticate(this::required);
+            return SimpleAuthenticationHandler.create()
+                    .authenticate(rc -> required(rc)
+                            .map(Fn.peek(u -> u.attributes().put(USER_CERT_KIND, kind()))));
         }
 
         @Override
         default SimpleAuthenticationHandler authenticateMaybe() {
             return SimpleAuthenticationHandler.create()
                     .authenticate(rc -> optional(rc)
-                            .map(Fn.Maybe.orElse(() -> User.create(JsonObject.of(ANONYMOUS_USER_KEY, System.currentTimeMillis())))));
+                            .map(Fn.Maybe.orElse(() -> User
+                                    .create(JsonObject.of(ANONYMOUS_USER_KEY, System.currentTimeMillis()))
+                            ))
+                            .map(Fn.peek(u -> u.attributes().put(USER_CERT_KIND, kind()))));
         }
-
-    }
-    /// A customer authenticator with token provider
-    interface CustomerTokenizer extends Customer,TokenProvider {
-
 
     }
 
@@ -95,6 +120,7 @@ public interface Authenticator {
     }
 
     Authenticator copy();
+
     /// extract token from RC
     Future<Optional<String>> token(RoutingContext ctx);
 
@@ -107,20 +133,28 @@ public interface Authenticator {
 
     /// create required authentication handler
     SimpleAuthenticationHandler authenticate();
+
     /// create optional authentication handler
     SimpleAuthenticationHandler authenticateMaybe();
 
-    String ANONYMOUS_USER_KEY = "anonymous";
-
-    static boolean isAnonymous(User user) {
-        return user.containsKey(ANONYMOUS_USER_KEY);
-    }
 
     int INJECT_REMOTE_ADDRESS = 0;
     String REMOTE_ADDRESS = "_RemoteAddress";
 
+    default boolean anonymous(User user) {
+        return isAnonymous(user);
+    }
+
     default Optional<String> remoteRealAddress(User user) {
         return Optional.ofNullable(user.principal().getString(REMOTE_ADDRESS));
+    }
+
+    default Optional<Integer> certKind(User user) {
+        return userCertificateKind(user);
+    }
+
+    default Optional<Long> userId(User user) {
+        return Authenticator.userIdentity(user);
     }
 
     AtomicReference<BitSet> INJECT_REQUEST_INFO = new AtomicReference<>(Fn.apply(new BitSet(), s -> s.set(INJECT_REMOTE_ADDRESS)));
@@ -133,11 +167,11 @@ public interface Authenticator {
         return user;
     }
 
-    record Validator(TokenReader reader, AuthenticationProvider provider) implements Authenticator {
+    record Validator(int kind, TokenReader reader, AuthenticationProvider provider) implements Authenticator {
 
         @Override
         public Authenticator copy() {
-            return new Validator(reader, provider);
+            return new Validator(kind, reader, provider);
         }
 
         @Override
@@ -153,9 +187,9 @@ public interface Authenticator {
                             .flatMap(tk -> tk.isBlank() ? Future.succeededFuture() : provider().authenticate(new TokenCredentials(tk)))
                             .map(u -> {
                                 if (u == null)
-                                    return inject(ctx, User.create(JsonObject.of(ANONYMOUS_USER_KEY, System.currentTimeMillis())));
+                                    return injection(ctx, User.create(JsonObject.of(ANONYMOUS_USER_KEY, System.currentTimeMillis())));
                                 if (!u.expired())
-                                    return inject(ctx, u);
+                                    return injection(ctx, u);
                                 throw DomainError.System.unauthorized("expired");
                             })
                             .recover(ex -> {
@@ -170,34 +204,37 @@ public interface Authenticator {
         }
 
         public SimpleAuthenticationHandler authenticate() {
-            return SimpleAuthenticationHandler.create().authenticate(ctx -> token(ctx)
-                    .map(x -> x.orElse(""))
-                    .flatMap(tk -> {
-                        if (tk.isBlank())
-                            return Future.failedFuture(DomainError.System.unauthorized("token required"));
-                        return provider().authenticate(new TokenCredentials(tk));
-                    })
-                    .map(u -> {
-                        if (!u.expired()) return inject(ctx, u);
-                        throw DomainError.System.unauthorized("expired");
-                    })
-                    .recover(ex -> {
-                        if (log.isDebugEnabled())
-                            log.error("authentication failed: {}", Web.dump(ctx), ex);
-                        else {
-                            log.error("authentication failed: {}", ctx.request().absoluteURI(), ex);
-                        }
-                        ctx.fail(401, ex);
-                        return Future.succeededFuture();
-                    }));
+            return SimpleAuthenticationHandler.create()
+                    .authenticate(ctx -> token(ctx)
+                            .map(x -> x.orElse(""))
+                            .flatMap(tk -> {
+                                if (tk.isBlank())
+                                    return Future.failedFuture(DomainError.System.unauthorized("token required"));
+                                return provider().authenticate(new TokenCredentials(tk));
+                            })
+                            .map(u -> {
+                                if (!u.expired()) return injection(ctx, u);
+                                throw DomainError.System.unauthorized("expired");
+                            })
+                            .recover(ex -> {
+                                if (log.isDebugEnabled())
+                                    log.error("authentication failed: {}", Web.dump(ctx), ex);
+                                else {
+                                    log.error("authentication failed: {}", ctx.request().absoluteURI(), ex);
+                                }
+                                ctx.fail(401, ex);
+                                return Future.succeededFuture();
+                            }));
         }
     }
 
-    record Generator<T extends AuthenticationProvider & TokenProvider>(TokenReader reader,
-                                                                       T provider) implements Authenticator, TokenProvider {
+    record Generator<T extends AuthenticationProvider & TokenProvider>(
+            int kind,
+            TokenReader reader, T provider
+    ) implements Authenticator, TokenProvider {
         @Override
         public Authenticator copy() {
-            return new Generator<>(reader, provider);
+            return new Generator<>(kind, reader, provider);
         }
 
         @Override
@@ -212,10 +249,10 @@ public interface Authenticator {
                             .flatMap(tk -> tk.isBlank() ? Future.succeededFuture() : provider().authenticate(new TokenCredentials(tk)))
                             .map(u -> {
                                 if (u == null) {
-                                    return User.create(JsonObject.of(ANONYMOUS_USER_KEY, System.currentTimeMillis()));
+                                    return injection(ctx,User.create(JsonObject.of(ANONYMOUS_USER_KEY, System.currentTimeMillis())));
                                 }
                                 if (!u.expired()) {
-                                    return u;
+                                    return Authenticator.inject(ctx,u);
                                 }
                                 throw DomainError.System.unauthorized("expired");
                             })
@@ -239,7 +276,7 @@ public interface Authenticator {
                         return provider().authenticate(new TokenCredentials(tk));
                     })
                     .map(u -> {
-                        if (!u.expired()) return u;
+                        if (!u.expired()) return injection(ctx,u);
                         throw DomainError.System.unauthorized("expired");
                     })
                     .recover(ex -> {
@@ -267,13 +304,17 @@ public interface Authenticator {
 
     record OpenIDJwt(
             Vertx vertx,
-            Cipher cipher, Key key, JWTAuth raw, JWTAuthOptions options
+            Cipher cipher,
+            Key key,
+            JWTAuth raw,
+            JWTAuthOptions options
     ) implements JWTAuth, TokenProvider {
         public OpenIDJwt(Vertx vertx, JWTAuth raw, byte[] key, JWTAuthOptions options) {
             this(
                     vertx,
                     aes(),
-                    new SecretKeySpec(key.length < 32 ? Arrays.copyOfRange(key, 0, 16)
+                    new SecretKeySpec(key.length < 32
+                            ? Arrays.copyOfRange(key, 0, 16)
                             : Arrays.copyOfRange(key, 0, 32), "AES"),
                     raw,
                     options
