@@ -10,13 +10,13 @@
     </parent>
 
     <groupId>io.github.zenliucn.vertx.vat</groupId>
-    <artifactId>runtime-foundation</artifactId>
-    <name>Foundation runtime</name>
-    <description>Foundation domain runtime dependencies package</description>
+    <artifactId>use-oauth2</artifactId>
+    <name>OAuth2 component</name>
+    <description>OAuth2 dependencies package</description>
     <dependencies>
         <dependency>
-            <groupId>io.github.zenliucn.vertx.vat</groupId>
-            <artifactId>foundation-domain</artifactId>
+            <groupId>io.vertx</groupId>
+            <artifactId>vertx-auth-oauth2</artifactId>
             <scope>compile</scope>
         </dependency>
     </dependencies>

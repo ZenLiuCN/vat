@@ -40,26 +40,48 @@ public interface Authenticator {
     String USER_ID = "_AUTH_USER_ID";
     String USER_CERT_KIND = "_AUTH_CERT_KIND";
     String ANONYMOUS_USER_KEY = "anonymous";
+    String REFRESHED_MARK = "_REFRESHED";
 
     static boolean isAnonymous(User user) {
         return user.containsKey(ANONYMOUS_USER_KEY);
+    }
+
+    static boolean isRefreshed(User user) {
+        return user.containsKey(REFRESHED_MARK);
+    }
+
+    static User setRefreshed(User user) {
+        user.attributes().put(REFRESHED_MARK, true);
+        return user;
     }
 
     static Optional<Long> userIdentity(User user) {
         return Optional.ofNullable(user.attributes().getLong(USER_ID));
     }
 
+    static User setIdentity(User user, long id) {
+        user.attributes().put(USER_ID, id);
+        return user;
+    }
+
     static Optional<Integer> userCertificateKind(User user) {
         return Optional.ofNullable(user.attributes().getInteger(USER_CERT_KIND));
+    }
+
+    static User setCertificateKind(User user, int kind) {
+        user.attributes().put(USER_CERT_KIND, kind);
+        return user;
     }
 
     /// unique authenticator kind, should never be -1.
     /// + 0: built-in JWT model.
     int kind();
-    default User injection(RoutingContext c,User u){
-        u.attributes().put(USER_CERT_KIND,kind());
-        return Authenticator.inject(c,u);
+
+    default User injection(RoutingContext c, User u) {
+        u.attributes().put(USER_CERT_KIND, kind());
+        return Authenticator.inject(c, u);
     }
+
     /// A customer authenticator
     interface Customer extends Authenticator {
 
@@ -249,10 +271,10 @@ public interface Authenticator {
                             .flatMap(tk -> tk.isBlank() ? Future.succeededFuture() : provider().authenticate(new TokenCredentials(tk)))
                             .map(u -> {
                                 if (u == null) {
-                                    return injection(ctx,User.create(JsonObject.of(ANONYMOUS_USER_KEY, System.currentTimeMillis())));
+                                    return injection(ctx, User.create(JsonObject.of(ANONYMOUS_USER_KEY, System.currentTimeMillis())));
                                 }
                                 if (!u.expired()) {
-                                    return Authenticator.inject(ctx,u);
+                                    return Authenticator.inject(ctx, u);
                                 }
                                 throw DomainError.System.unauthorized("expired");
                             })
@@ -276,7 +298,7 @@ public interface Authenticator {
                         return provider().authenticate(new TokenCredentials(tk));
                     })
                     .map(u -> {
-                        if (!u.expired()) return injection(ctx,u);
+                        if (!u.expired()) return injection(ctx, u);
                         throw DomainError.System.unauthorized("expired");
                     })
                     .recover(ex -> {

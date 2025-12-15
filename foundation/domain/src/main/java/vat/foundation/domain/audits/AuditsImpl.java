@@ -36,6 +36,11 @@ public class AuditsImpl extends AuditsDomain<AuditsImpl> {
         audits().justPut(event.actor(),
                         Codecs.AUDIT_DATA.get(Codecs.AUDIT_INVOKE_DATA.from(event)
                                         .asJson())
+                                .reported(-1)
+                                .auditor(-1)
+                                .audited(0)
+                                .result(Result.TODO)
+                                .comment("")
                                 .status(event.kind())
                                 .asJson()
                 )
@@ -46,6 +51,11 @@ public class AuditsImpl extends AuditsDomain<AuditsImpl> {
     public void onRequest(AuditRequest event) {
         audits().justPut(event.actor(),
                         Codecs.AUDIT_DATA.get(Codecs.AUDIT_REQUEST_DATA.from(event).asJson())
+                                .reported(-1)
+                                .auditor(-1)
+                                .audited(0)
+                                .result(Result.TODO)
+                                .comment("")
                                 .status(event.kind())
                                 .asJson()
                 )
@@ -55,6 +65,11 @@ public class AuditsImpl extends AuditsDomain<AuditsImpl> {
     @Override
     public void onResponse(AuditResponse event) {
         audits().justPut(event.actor(), Codecs.AUDIT_DATA.get(Codecs.AUDIT_RESPONSE_DATA.from(event).asJson())
+                        .reported(-1)
+                        .auditor(-1)
+                        .audited(0)
+                        .result(Result.TODO)
+                        .comment("")
                         .status(event.kind())
                         .asJson()
                 )

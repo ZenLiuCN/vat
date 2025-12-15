@@ -13,6 +13,7 @@
         <module>use-foundation</module>
         <module>use-cache</module>
         <module>use-jwt</module>
+        <module>use-oauth2</module>
         <module>use-web</module>
         <module>use-webclient</module>
         <module>use-store</module>
@@ -452,6 +453,11 @@
             <dependency>
                 <groupId>io.github.zenliucn.vertx.vat</groupId>
                 <artifactId>use-jwt</artifactId>
+                <version>${vat.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.github.zenliucn.vertx.vat</groupId>
+                <artifactId>use-oauth2</artifactId>
                 <version>${vat.version}</version>
             </dependency>
             <dependency>
