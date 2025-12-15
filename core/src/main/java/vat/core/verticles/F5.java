@@ -10,7 +10,6 @@ import io.vertx.ext.web.Router;
 import io.vertx.sqlclient.Pool;
 import lombok.SneakyThrows;
 import vat.api.Activities;
-import vat.api.implement.BaseHandlers;
 import vat.api.implement.Web;
 import vat.api.meta.Nullable;
 import vat.api.store.Dialect;
@@ -58,7 +57,7 @@ public non-sealed interface F5 extends F {
                         var entry = x.v4;
                         var router = Router.router(vertx);
                         if (cors != null) router.route().handler(cors);
-                        BaseHandlers.register(router);
+                        Web.register(router);
                         server.requestHandler(router);
                         var web = Web.of(router, conf, an);
                         Web.log.info("{} endpoints listen {}:{}",name, info.options().getHost(), info.options().getPort());

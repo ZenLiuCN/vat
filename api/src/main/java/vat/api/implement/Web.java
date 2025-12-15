@@ -1,12 +1,16 @@
 package vat.api.implement;
 
+import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpHeaderValues;
+import io.netty.handler.codec.http.HttpResponseStatus;
 import io.vertx.core.*;
 import io.vertx.core.buffer.Buffer;
+import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.http.HttpServerResponse;
+import io.vertx.core.internal.buffer.BufferInternal;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.auth.User;
@@ -15,6 +19,7 @@ import io.vertx.ext.auth.authorization.AuthorizationContext;
 import io.vertx.ext.web.*;
 import io.vertx.ext.web.handler.BodyHandler;
 import io.vertx.ext.web.handler.SecurityAuditLoggerHandler;
+import io.vertx.serviceproxy.ServiceException;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.With;
@@ -27,6 +32,7 @@ import vat.api.Data;
 import vat.api.DomainError;
 import vat.api.meta.Nullable;
 import vat.api.trait.Applicative;
+import vat.api.utils.Fn;
 import vat.api.utils.Pointer;
 
 import java.net.URLEncoder;
@@ -34,7 +40,10 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.*;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 ///
 /// @author Zen.Liu
@@ -42,6 +51,10 @@ import java.util.function.*;
 
 
 public interface Web extends Router, Applicative<Web> {
+    interface RefreshedTokenProvider {
+        Optional<String> apply(User user);
+    }
+
     Web withDebug(boolean debug);
 
     boolean debug();
@@ -492,117 +505,330 @@ public interface Web extends Router, Applicative<Web> {
         //endregion
 
         //region Response send
-        default <T extends Data> Handler<AsyncResult<T>> respondOne() {
-            return BaseHandlers.sendOne(debug(), raw());
-        }
 
-        /// send  converted json data for js compatible
-        default <T extends Data> Handler<AsyncResult<T>> respondJs() {
-            return BaseHandlers.sendJsonData(debug(), raw());
-        }
-
-        /// send  converted json data list for js compatible
-        default <T extends Data, R extends Collection<T>> Handler<AsyncResult<R>> respondJsList() {
-            return BaseHandlers.sendJsonDataList(debug(), raw());
+        static <T> Handler<AsyncResult<T>> handler(
+                RoutingContext ctx,
+                boolean debug,
+                Runnable before, BiConsumer<RoutingContext, T> handle) {
+            return debug ? r -> {
+                before.run();
+                if (r.succeeded()) {
+                    handle.accept(ctx, r.result());
+                } else {
+                    log.error("fail {}", Web.dump(ctx), r.cause());
+                    ctx.fail(r.cause());
+                }
+            } : r -> {
+                before.run();
+                if (r.succeeded()) {
+                    handle.accept(ctx, r.result());
+                } else {
+                    ctx.fail(r.cause());
+                }
+            };
         }
 
         /// send none converted json data
-        default <T extends Data> Handler<AsyncResult<T>> respondJson() {
-            return BaseHandlers.sendJsonDataJson(debug(), raw());
+        default <T extends Data> Handler<AsyncResult<T>> respondOne() {
+            return respondOne(null);
+        }
+
+        /// send none converted json data
+        default <T extends Data> Handler<AsyncResult<T>> respondOne(@Nullable RefreshedTokenProvider provider) {
+            var ctx = raw();
+            var debug = debug();
+            var before = injectRefreshedToken(provider, ctx);
+            return handler(ctx, debug, before, (c, v) -> c.json(toJson(v)));
         }
 
         /// send none converted json data list
-        default <T extends Data, R extends Collection<T>> Handler<AsyncResult<R>> respondJsonList() {
-            return BaseHandlers.sendJsonDataJsonList(debug(), raw());
+        default <T extends Data, L extends Collection<T>> Handler<AsyncResult<L>> respondList() {
+            return respondList(null);
         }
 
-        /// send raw json data list
+        /// send none converted json data list
+        default <T extends Data, L extends Collection<T>> Handler<AsyncResult<L>> respondList(@Nullable RefreshedTokenProvider provider) {
+            var ctx = raw();
+            var debug = debug();
+            var before = injectRefreshedToken(provider, ctx);
+            return handler(ctx, debug, before, (c, v) -> c.json(toJson(v)));
+        }
+
+        /// send  converted json data for js compatible
+        default <T extends Data> Handler<AsyncResult<T>> respondOneJs() {
+            return respondOneJs(null);
+        }
+
+        /// send  converted json data for js compatible
+        default <T extends Data> Handler<AsyncResult<T>> respondOneJs(@Nullable RefreshedTokenProvider provider) {
+            var ctx = raw();
+            var debug = debug();
+            var before = injectRefreshedToken(provider, ctx);
+            return handler(ctx, debug, before, (c, v) -> c.json(toJS(v)));
+        }
+
+        /// send  converted json data list for js compatible
+        default <T extends Data, L extends Collection<T>> Handler<AsyncResult<L>> respondListJs() {
+            return respondListJs(null);
+        }
+
+        /// send  converted json data list for js compatible
+        default <T extends Data, L extends Collection<T>> Handler<AsyncResult<L>> respondListJs(@Nullable RefreshedTokenProvider provider) {
+            var ctx = raw();
+            var debug = debug();
+            var before = injectRefreshedToken(provider, ctx);
+            return handler(ctx, debug, before, (c, v) -> c.json(toJS(v)));
+        }
+
+        /// send raw json data
         default Handler<AsyncResult<JsonObject>> respond() {
-            return BaseHandlers.sendJson(debug(), raw());
+            return respond(null);
         }
 
-        default <T> Handler<AsyncResult<T>> respond(BiFunction<Context, T, Future<Void>> response) {
-            return BaseHandlers.response(this, response);
+        /// send raw json data
+        default Handler<AsyncResult<JsonObject>> respond(@Nullable RefreshedTokenProvider provider) {
+            var ctx = raw();
+            var debug = debug();
+            var before = injectRefreshedToken(provider, ctx);
+            return handler(ctx, debug, before, RoutingContext::json);
         }
 
-        /// send raw json list
-        default Handler<AsyncResult<JsonArray>> respondList() {
-            return BaseHandlers.sendJsonArray(debug(), raw());
+        /// send raw json data
+        default Handler<AsyncResult<JsonArray>> respondArray() {
+            return respondArray(null);
+        }
+
+        /// send raw json data
+        default Handler<AsyncResult<JsonArray>> respondArray(@Nullable RefreshedTokenProvider provider) {
+            var ctx = raw();
+            var debug = debug();
+            var before = injectRefreshedToken(provider, ctx);
+            return handler(ctx, debug, before, RoutingContext::json);
+        }
+
+        /// Manually response process
+        default <T> Handler<AsyncResult<T>> response(BiFunction<Context, T, Future<Void>> response) {
+            return response(response, null);
+        }
+
+        /// Manually response process
+        default <T> Handler<AsyncResult<T>> response(BiFunction<Context, T, Future<Void>> response, @Nullable RefreshedTokenProvider provider) {
+            var ctx = raw();
+            var debug = debug();
+            var before = injectRefreshedToken(provider, ctx);
+            return handler(ctx, debug, before, (s, v) -> {
+                var f = response.apply(this, v);
+                if (f != null) {
+                    f.onFailure(ctx::fail);
+                }
+            });
         }
 
         /// send nothing
         default Handler<AsyncResult<Void>> respondVoid() {
-            return BaseHandlers.sendVoid(debug(), raw());
+            return respondVoid(null);
+        }
+
+        /// send nothing
+        default Handler<AsyncResult<Void>> respondVoid(@Nullable RefreshedTokenProvider provider) {
+            var ctx = raw();
+            var debug = debug();
+            var before = injectRefreshedToken(provider, ctx);
+            return handler(ctx, debug, before, (c, n) -> c.end());
         }
 
         /// send raw text
         default Handler<AsyncResult<String>> respondText() {
-            return BaseHandlers.sendText(debug(), raw());
+            return respondText(null);
         }
 
+        /// send raw text
+        default Handler<AsyncResult<String>> respondText(@Nullable RefreshedTokenProvider provider) {
+            var ctx = raw();
+            var debug = debug();
+            var before = injectRefreshedToken(provider, ctx);
+            return handler(ctx, debug, before, (c, v) -> Web.contentType(ctx, HttpHeaderValues.TEXT_PLAIN).end(v));
+        }
+
+        /// send raw html string
         default Handler<AsyncResult<String>> respondHtmlText() {
-            return BaseHandlers.sendHtmlText(debug(), raw());
+            return respondHtmlText(null);
         }
 
+        /// send raw html string
+        default Handler<AsyncResult<String>> respondHtmlText(@Nullable RefreshedTokenProvider provider) {
+            var ctx = raw();
+            var debug = debug();
+            var before = injectRefreshedToken(provider, ctx);
+            return handler(ctx, debug, before, (c, v) -> Web.contentType(ctx, HttpHeaderValues.TEXT_HTML).end(v));
+        }
+
+        /// send raw html buffer
         default Handler<AsyncResult<Buffer>> respondHtmlBuffer() {
-            return BaseHandlers.sendHtmlBuffer(debug(), raw());
+            return respondHtmlBuffer(null);
         }
 
-
-        //Response send with data container
-        default <T extends Data> Handler<AsyncResult<T>> respondJsData() {
-            return BaseHandlers.sendJsonDataContainer(debug(), raw());
+        /// send raw html buffer
+        default Handler<AsyncResult<Buffer>> respondHtmlBuffer(@Nullable RefreshedTokenProvider provider) {
+            var ctx = raw();
+            var debug = debug();
+            var before = injectRefreshedToken(provider, ctx);
+            return handler(ctx, debug, before, (c, v) -> Web.contentType(ctx, HttpHeaderValues.TEXT_HTML).end(v));
         }
 
-        default <T extends Data, R extends Collection<T>> Handler<AsyncResult<R>> respondJsListData() {
-            return BaseHandlers.sendJsonDataListContainer(debug(), raw());
+        /// send with data container
+        default <T extends Data> Handler<AsyncResult<T>> respondOneJsData() {
+            return respondOneJsData(null);
         }
 
-        default <T extends Data> Handler<AsyncResult<T>> respondJsonData() {
-            return BaseHandlers.sendJsonDataJsonContainer(debug(), raw());
+        /// send with data container
+        default <T extends Data> Handler<AsyncResult<T>> respondOneJsData(@Nullable RefreshedTokenProvider provider) {
+            var ctx = raw();
+            var debug = debug();
+            var before = injectRefreshedToken(provider, ctx);
+            return handler(ctx, debug, before, (c, v) -> ctx.json(JsonObject.of("code", 200, "data", toJS(v))));
         }
 
-        default <T extends Data, R extends Collection<T>> Handler<AsyncResult<R>> respondJsonListData() {
-            return BaseHandlers.sendJsonDataJsonListContainer(debug(), raw());
+        /// send with data container
+        default <T extends Data, L extends Collection<T>> Handler<AsyncResult<L>> respondListJsData() {
+            return respondListJsData(null);
+        }
+
+        /// send with data container
+        default <T extends Data, L extends Collection<T>> Handler<AsyncResult<L>> respondListJsData(@Nullable RefreshedTokenProvider provider) {
+            var ctx = raw();
+            var debug = debug();
+            var before = injectRefreshedToken(provider, ctx);
+            return handler(ctx, debug, before, (c, v) -> ctx.json(JsonObject.of("code", 200, "data", toJS(v))));
+        }
+
+        /// send with data container
+        default <T extends Data> Handler<AsyncResult<T>> respondOneData() {
+            return respondOneData(null);
+
+        }
+
+        /// send with data container
+        default <T extends Data> Handler<AsyncResult<T>> respondOneData(@Nullable RefreshedTokenProvider provider) {
+            var ctx = raw();
+            var debug = debug();
+            var before = injectRefreshedToken(provider, ctx);
+            return handler(ctx, debug, before, (c, v) -> ctx.json(JsonObject.of("code", 200, "data", toJson(v))));
+        }
+
+        /// send with data container
+        default <T extends Data, L extends Collection<T>> Handler<AsyncResult<L>> respondListData() {
+            return respondListData(null);
+        }
+
+        /// send with data container
+        default <T extends Data, L extends Collection<T>> Handler<AsyncResult<L>> respondListData(@Nullable RefreshedTokenProvider provider) {
+            var ctx = raw();
+            var debug = debug();
+            var before = injectRefreshedToken(provider, ctx);
+            return handler(ctx, debug, before, (c, v) -> ctx.json(JsonObject.of("code", 200, "data", toJson(v))));
         }
 
 
         default Handler<AsyncResult<JsonObject>> respondData() {
-            return BaseHandlers.sendContainer(debug(), raw());
+            return respondData(null);
         }
 
-        default Handler<AsyncResult<JsonArray>> respondListData() {
-            return BaseHandlers.sendArrayContainer(debug(), raw());
+        default Handler<AsyncResult<JsonObject>> respondData(@Nullable RefreshedTokenProvider provider) {
+            var ctx = raw();
+            var debug = debug();
+            var before = injectRefreshedToken(provider, ctx);
+            return handler(ctx, debug, before, (c, v) -> ctx.json(JsonObject.of("code", 200, "data", v)));
+        }
+
+        default Handler<AsyncResult<JsonArray>> respondArrayData() {
+            return respondArrayData(null);
+        }
+
+        default Handler<AsyncResult<JsonArray>> respondArrayData(@Nullable RefreshedTokenProvider provider) {
+            var ctx = raw();
+            var debug = debug();
+            var before = injectRefreshedToken(provider, ctx);
+            return handler(ctx, debug, before, (c, v) -> ctx.json(JsonObject.of("code", 200, "data", v)));
         }
 
         default Handler<AsyncResult<Void>> respondVoidData() {
-            return BaseHandlers.sendVoidContainer(debug(), raw());
+            return respondVoidData(null);
+        }
+
+        default Handler<AsyncResult<Void>> respondVoidData(@Nullable RefreshedTokenProvider provider) {
+            var ctx = raw();
+            var debug = debug();
+            var before = injectRefreshedToken(provider, ctx);
+            return handler(ctx, debug, before, (c, v) -> ctx.json(JsonObject.of("code", 200, "data", v)));
         }
 
         default Handler<AsyncResult<String>> respondTextData() {
-            return BaseHandlers.sendTextContainer(debug(), raw());
+            return respondTextData(null);
         }
 
-        default Handler<AsyncResult<String>> redirect() {
-            return BaseHandlers.redirectTo(debug(), raw());
+        default Handler<AsyncResult<String>> respondTextData(@Nullable RefreshedTokenProvider provider) {
+            var ctx = raw();
+            var debug = debug();
+            var before = injectRefreshedToken(provider, ctx);
+            return handler(ctx, debug, before, (c, v) -> ctx.json(JsonObject.of("code", 200, "data", v)));
+        }
+
+        default Handler<AsyncResult<String>> redirectTo() {
+            return redirectTo(null);
+        }
+
+        default Handler<AsyncResult<String>> redirectTo(@Nullable RefreshedTokenProvider provider) {
+            var ctx = raw();
+            var debug = debug();
+            var before = injectRefreshedToken(provider, ctx);
+            return handler(ctx, debug, before, (c, v) -> c.redirect(v)
+                    .onComplete(a -> {
+                        if (a.failed()) {
+                            log.error("redirect to failure", a.cause());
+                            ctx.fail(a.cause());
+                        }
+                    }));
         }
 
         default Handler<AsyncResult<Buffer>> binary(String contentType, @Nullable String fileName) {
-            return BaseHandlers.sendBinary(raw(), contentType, fileName, null);
+            return binary(contentType, fileName, null);
+        }
+
+        default Handler<AsyncResult<Buffer>> binary(String contentType, @Nullable String fileName, @Nullable RefreshedTokenProvider provider) {
+            var ctx = raw();
+            var debug = debug();
+            var before = injectRefreshedToken(provider, ctx);
+            var type = Fn.notBlank(contentType) ? contentType : HttpHeaderValues.APPLICATION_OCTET_STREAM;
+            return handler(ctx, debug, before,
+                    Fn.notBlank(fileName) ? (c, v) -> Web.contentType(c, type)
+                            .putHeader(HttpHeaders.CONTENT_DISPOSITION,
+                                    "attachment;filename*=UTF-8''" + URLEncoder.encode(fileName, StandardCharsets.UTF_8))
+                            .setStatusCode(200).send(v)
+                            : (c, v) -> Web.contentType(c, type).setStatusCode(200).send(v)
+            );
         }
 
         default <T> Handler<AsyncResult<T>> binary(Function<T, Buffer> binary,
                                                    Function<T, String> contentType,
                                                    Function<T, String> fileName) {
-            return r -> {
-                if (r.succeeded()) {
-                    var res = r.result();
-                    BaseHandlers.sendBinary(raw(), contentType.apply(res), fileName == null ? null : fileName.apply(res), null)
-                            .handle(r.map(binary));
-                } else {
-                    BaseHandlers.sendBinary(raw(), null, null, null).handle(r.mapEmpty());
-                }
-            };
+            return binary(binary, contentType, fileName, null);
+        }
+
+        default <T> Handler<AsyncResult<T>> binary(Function<T, Buffer> binary,
+                                                   Function<T, String> contentType,
+                                                   Function<T, String> fileName,
+                                                   @Nullable RefreshedTokenProvider provider) {
+            var ctx = raw();
+            var debug = debug();
+            var before = injectRefreshedToken(provider, ctx);
+            return handler(ctx, debug, before,
+                    (c, v) -> Web.contentType(c, contentType.apply(v))
+                            .putHeader(HttpHeaders.CONTENT_DISPOSITION,
+                                    "attachment;filename*=UTF-8''" + URLEncoder.encode(fileName.apply(v), StandardCharsets.UTF_8))
+                            .setStatusCode(200).send(binary.apply(v))
+
+            );
         }
         //endregion
 
@@ -610,42 +836,42 @@ public interface Web extends Router, Applicative<Web> {
         //region Error
         default void info(int status, @Nullable String message) {
             raw().response().setStatusCode(status);
-            raw().json(BaseHandlers.error(status, message, DomainError.MODE_NOTIFY));
+            raw().json(Web.error(status, message, DomainError.MODE_NOTIFY));
         }
 
         default void error(int status, @Nullable String message) {
             raw().response().setStatusCode(status);
-            raw().json(BaseHandlers.error(status, message, DomainError.MODE_PROMPT));
+            raw().json(Web.error(status, message, DomainError.MODE_PROMPT));
         }
 
         default void fatal(int status, @Nullable String message) {
             raw().response().setStatusCode(status);
-            raw().json(BaseHandlers.error(status, message, DomainError.MODE_FATAL));
+            raw().json(Web.error(status, message, DomainError.MODE_FATAL));
         }
 
         default void withInfo(JsonArray data, @Nullable String message) {
-            raw().json(BaseHandlers.ok(data, message, DomainError.MODE_NOTIFY));
+            raw().json(Web.ok(data, message, DomainError.MODE_NOTIFY));
         }
 
         default void withInfo(Number data, @Nullable String message) {
-            raw().json(BaseHandlers.ok(data, message, DomainError.MODE_NOTIFY));
+            raw().json(Web.ok(data, message, DomainError.MODE_NOTIFY));
         }
 
         default void withInfo(JsonObject data, @Nullable String message) {
-            raw().json(BaseHandlers.ok(data, message, DomainError.MODE_NOTIFY));
+            raw().json(Web.ok(data, message, DomainError.MODE_NOTIFY));
         }
 
 
         default void withError(JsonArray data, @Nullable String message) {
-            raw().json(BaseHandlers.ok(data, message, DomainError.MODE_PROMPT));
+            raw().json(Web.ok(data, message, DomainError.MODE_PROMPT));
         }
 
         default void withError(Number data, @Nullable String message) {
-            raw().json(BaseHandlers.ok(data, message, DomainError.MODE_PROMPT));
+            raw().json(Web.ok(data, message, DomainError.MODE_PROMPT));
         }
 
         default void withError(JsonObject data, @Nullable String message) {
-            raw().json(BaseHandlers.ok(data, message, DomainError.MODE_PROMPT));
+            raw().json(Web.ok(data, message, DomainError.MODE_PROMPT));
         }
         //endregion
 
@@ -968,6 +1194,65 @@ public interface Web extends Router, Applicative<Web> {
                             .replace("+", "%20")));
             return this;
         }
+
+        default <T> Handler<AsyncResult<Void>> sse(Function<EventEmitter, T> onConnect, Handler<T> onFinish) {
+            return rx -> {
+                if (rx.succeeded()) {
+                    var res = raw().response();
+                    res
+                            .putHeader("Content-Type", "text/event-stream")
+                            .putHeader("Connection", "keep-alive")
+                            .putHeader("Transfer-Encoding", "chunked")
+                            .putHeader("Cache-Control", "no-cache")
+                            .putHeader("X-Accel-Buffering", "no")
+                            .putHeader("Cache-Control", "no-cache, must-revalidate")
+                            .setStatusCode(200)
+                            .setChunked(true)
+                            .write(EMPTY);
+                    var r = onConnect.apply(() -> res);
+                    res.closeHandler($ -> {
+                        onFinish.handle(r);
+                        if (!res.ended()) res.end();
+                    }).endHandler($ -> {
+                        onFinish.handle(r);
+                        if (!res.ended()) res.end();
+                    });
+                } else {
+                    if (debug()) log.error("fail {}", Web.dump(this.raw()), rx.cause());
+                    this.raw().fail(rx.cause());
+                }
+            };
+        }
+
+        default <T> Handler<AsyncResult<Void>> sse(BiFunction<Context, EventEmitter, T> onConnect, Handler<T> onFinish) {
+            return rx -> {
+                if (rx.succeeded()) {
+                    var res = raw().response();
+                    res
+                            .putHeader("Content-Type", "text/event-stream")
+                            .putHeader("Connection", "keep-alive")
+                            .putHeader("Transfer-Encoding", "chunked")
+                            .putHeader("Cache-Control", "no-cache")
+                            .putHeader("X-Accel-Buffering", "no")
+                            .putHeader("Cache-Control", "no-cache, must-revalidate")
+                            .setStatusCode(200)
+                            .setChunked(true)
+                            .write(EMPTY);
+                    var r = onConnect.apply(this, () -> res);
+                    res.closeHandler($ -> {
+                        onFinish.handle(r);
+                        if (!res.ended()) res.end();
+                    }).endHandler($ -> {
+                        onFinish.handle(r);
+                        if (!res.ended()) res.end();
+                    });
+                } else {
+                    if (debug()) log.error("fail {}", Web.dump(this.raw()), rx.cause());
+                    this.raw().fail(rx.cause());
+                }
+            };
+        }
+
 
         @EqualsAndHashCode
         class C implements Context {
@@ -1493,7 +1778,6 @@ public interface Web extends Router, Applicative<Web> {
     }
 
 
-
     /// @param domain   the domain identifier of ability
     /// @param identity the identity of ability
     /// @param value    the permission value of ability
@@ -1553,5 +1837,377 @@ public interface Web extends Router, Applicative<Web> {
 
     interface AuthorityProvider {
         Future<List<Authority>> load(long identity);
+    }
+
+    AtomicReference<String> REFRESH_TOKEN_KEY = new AtomicReference<>("X_NEW_TOKEN");
+    Runnable NOOP = () -> {
+    };
+
+    static Runnable injectRefreshedToken(Web.RefreshedTokenProvider provider, RoutingContext ctx) {
+        if (provider == null) return NOOP;
+        return () ->
+                Optional.ofNullable(ctx.user())
+                        .flatMap(provider::apply)
+                        .ifPresent(string -> ctx.response().putHeader(REFRESH_TOKEN_KEY.get(), string));
+    }
+
+    static JsonObject toJson(Data d) {
+        return d == null ? null : d.toJson();
+    }
+
+    static JsonObject toJS(Data d) {
+        return d == null ? null : d.toJS();
+    }
+
+    static JsonArray toJS(Collection<? extends Data> v) {
+        return v == null ? null : new JsonArray(v.stream().map(Fn.nullable(Data::toJS)).toList());
+    }
+
+    static JsonArray toJson(Collection<? extends Data> v) {
+        return v == null ? null : new JsonArray(v.stream().map(Fn.nullable(Data::toJson)).toList());
+    }
+
+    static HttpServerResponse contentType(RoutingContext ctx, CharSequence contentType) {
+        var res = ctx.response();
+        if (res.headers().contains(HttpHeaders.CONTENT_TYPE) || contentType == null) return res;
+        res.putHeader(HttpHeaders.CONTENT_TYPE, contentType);
+        return res;
+    }
+
+    AtomicReference<BiPredicate<Throwable, RoutingContext>> THROWABLE_CONVERT = new AtomicReference<>((err, ctx) -> false);
+
+    Handler<RoutingContext> DEFAULT_500_HANDLER = c -> {
+        var cause = c.failure();
+        if (log.isDebugEnabled()) {
+            log.error("response {} error ", Web.dump(c), cause);
+        } else {
+            log.error("response error ", cause);
+        }
+        if (THROWABLE_CONVERT.get().test(cause, c)) {
+            return;
+        }
+        if (cause instanceof DomainError de) {
+            c
+                    .response()
+                    .setStatusCode(de.code)
+                    .putHeader(HttpHeaders.CONTENT_TYPE, HttpHeaderValues.APPLICATION_JSON)
+                    .send(error(de.code, de.user, de.mode).toBuffer());
+            return;
+        }
+        if (cause instanceof ServiceException de && de.failureCode() != 500) {
+            c
+                    .response()
+                    .setStatusCode(de.failureCode())
+                    .putHeader(HttpHeaders.CONTENT_TYPE, HttpHeaderValues.APPLICATION_JSON)
+                    .send(error(de.failureCode(), de.getMessage()).toBuffer());
+            return;
+        }
+        //otherwise
+        c
+                .response()
+                .setStatusCode(HttpResponseStatus.INTERNAL_SERVER_ERROR.code())
+                .putHeader(HttpHeaders.CONTENT_TYPE, HttpHeaderValues.APPLICATION_JSON)
+                .send(error(500).toBuffer());
+    };
+
+    //region common error handler
+    Handler<RoutingContext> DEFUALT_401_HANDLER = c -> c
+            .response()
+            .setStatusCode(HttpResponseStatus.UNAUTHORIZED.code())
+            .putHeader(HttpHeaders.CONTENT_TYPE, HttpHeaderValues.APPLICATION_JSON)
+            .send(error(401, "登录过期或未登录，请登录后进行操作！", DomainError.MODE_FATAL).toBuffer());
+    Handler<RoutingContext> DEFUALT_403_HANDLER = c -> c
+            .response()
+            .setStatusCode(HttpResponseStatus.FORBIDDEN.code())
+            .putHeader(HttpHeaders.CONTENT_TYPE, HttpHeaderValues.APPLICATION_JSON)
+            .send(error(403, "无操作权限！", DomainError.MODE_PROMPT).toBuffer());
+    Handler<RoutingContext> DEFUALT_404_HANDLER = c -> c
+            .response()
+            .setStatusCode(HttpResponseStatus.NOT_FOUND.code())
+            .putHeader(HttpHeaders.CONTENT_TYPE, HttpHeaderValues.APPLICATION_JSON)
+            .send(error(404, null, DomainError.MODE_NOTIFY).toBuffer());
+    Handler<RoutingContext> DEFUALT_409_HANDLER = c -> c
+            .response()
+            .setStatusCode(HttpResponseStatus.CONFLICT.code())
+            .putHeader(HttpHeaders.CONTENT_TYPE, HttpHeaderValues.APPLICATION_JSON)
+            .send(error(409, "数据冲突，请刷新后重试操作！", DomainError.MODE_FATAL).toBuffer());
+    Map<Integer, Handler<RoutingContext>> ERROR_HANDLER_REGISTRY = Stream.of(
+                    Map.entry(500, DEFAULT_500_HANDLER)
+                    , Map.entry(401, DEFUALT_401_HANDLER)
+                    , Map.entry(404, DEFUALT_404_HANDLER)
+                    , Map.entry(403, DEFUALT_403_HANDLER)
+                    , Map.entry(409, DEFUALT_409_HANDLER)
+            )
+            .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+
+    static JsonObject error(int status) {
+        return error(status, null, 0);
+    }
+
+    static JsonObject error(int status, @Nullable String message) {
+        return error(status, message, 0);
+    }
+
+    static JsonObject error(int status, @Nullable String message, int prompt) {
+        var j = JsonObject.of(
+                "timestamp", String.valueOf(System.currentTimeMillis()),
+                "code", status
+        );
+        if (message != null && !message.isBlank()) {
+            j.put("message", message);
+        }
+        if (prompt > 0) {
+            j.put("mode", prompt);
+        }
+        return j;
+    }
+
+    static JsonObject ok(JsonObject data, @Nullable String message, int prompt) {
+        var j = JsonObject.of(
+                "timestamp", String.valueOf(System.currentTimeMillis()),
+                "code", 200,
+                "data", data
+        );
+        if (message != null && !message.isBlank()) {
+            j.put("message", message);
+        }
+        if (prompt > 0) {
+            j.put("mode", prompt);
+        }
+        return j;
+    }
+
+    static JsonObject ok(JsonObject data, @Nullable String message) {
+        return ok(data, message, 0);
+    }
+
+    static JsonObject ok(JsonObject data) {
+        return ok(data, null, 0);
+    }
+
+    static JsonObject ok(JsonArray data, @Nullable String message, int prompt) {
+        var j = JsonObject.of(
+                "timestamp", String.valueOf(System.currentTimeMillis()),
+                "code", 200,
+                "data", data
+        );
+        if (message != null && !message.isBlank()) {
+            j.put("message", message);
+        }
+        if (prompt > 0) {
+            j.put("mode", prompt);
+        }
+        return j;
+    }
+
+    static JsonObject ok(JsonArray data, @Nullable String message) {
+        return ok(data, message, 0);
+    }
+
+    static JsonObject ok(JsonArray data) {
+        return ok(data, null, 0);
+    }
+
+    static JsonObject ok(String data, @Nullable String message, int prompt) {
+        var j = JsonObject.of(
+                "timestamp", String.valueOf(System.currentTimeMillis()),
+                "code", 200,
+                "data", data
+        );
+        if (message != null && !message.isBlank()) {
+            j.put("message", message);
+        }
+        if (prompt > 0) {
+            j.put("mode", prompt);
+        }
+        return j;
+    }
+
+    static JsonObject ok(String data, @Nullable String message) {
+        return ok(data, message, 0);
+    }
+
+    static JsonObject ok(String data) {
+        return ok(data, null, 0);
+    }
+
+    static JsonObject ok(Number data, @Nullable String message, int prompt) {
+        var j = JsonObject.of(
+                "timestamp", String.valueOf(System.currentTimeMillis()),
+                "code", 200,
+                "data", data instanceof Long l ? String.valueOf(l) : data
+        );
+        if (message != null && !message.isBlank()) {
+            j.put("message", message);
+        }
+        if (prompt > 0) {
+            j.put("mode", prompt);
+        }
+        return j;
+    }
+
+    static JsonObject ok(Number data, @Nullable String message) {
+        return ok(data, message, 0);
+    }
+
+    static JsonObject ok(Number data) {
+        return ok(data, null, 0);
+    }
+
+    //endregion
+    static void register(Router router) {
+        ERROR_HANDLER_REGISTRY.forEach(router::errorHandler);
+    }
+
+    Buffer EMPTY = BufferInternal.buffer(Unpooled.EMPTY_BUFFER);
+
+    interface EventEmitter {
+        HttpServerResponse $it();
+
+        /**
+         * event for SSE, each field can only set once
+         */
+        interface Event {
+            Buffer $it();
+
+            Event id(String evtId);
+
+            Event event(String type);
+
+            Event retry(int millsSeconds);
+
+            Event data(String data);
+
+            Event data(JsonObject data);
+
+            Event data(JsonArray data);
+
+            class evt implements Event {
+
+                private final Buffer b = Buffer.buffer();
+
+                public Buffer $it() {
+                    return b;
+                }
+
+                private int s = 0;
+                static final int FLAG_STATUS_ID = 1;
+                static final int FLAG_STATUS_RETRY = 1 << 2;
+                static final int FLAG_STATUS_EVENT = 1 << 3;
+                static final int FLAG_STATUS_DATA = 1 << 4;
+                static final byte[] FIELD_ID = "id:".getBytes(StandardCharsets.UTF_8);
+                static final byte[] FIELD_EVENT = "event:".getBytes(StandardCharsets.UTF_8);
+                static final byte[] FIELD_RETRY = "retry:".getBytes(StandardCharsets.UTF_8);
+                static final byte[] FIELD_data = "data:".getBytes(StandardCharsets.UTF_8);
+
+                @Override
+                public Event id(String evtId) {
+                    if ((s & FLAG_STATUS_ID) != 0) throw new IllegalStateException("ID already set");
+                    b.appendBytes(FIELD_ID).appendString(evtId).appendByte((byte) '\n');
+                    s = s | FLAG_STATUS_ID;
+                    return this;
+                }
+
+                @Override
+                public Event event(String type) {
+                    if ((s & FLAG_STATUS_EVENT) != 0) throw new IllegalStateException("Event already set");
+                    b.appendBytes(FIELD_EVENT).appendString(type).appendByte((byte) '\n');
+                    s = s | FLAG_STATUS_EVENT;
+                    return this;
+                }
+
+                @Override
+                public Event retry(int millsSeconds) {
+                    if ((s & FLAG_STATUS_RETRY) != 0) throw new IllegalStateException("Retry already set");
+                    b.appendBytes(FIELD_RETRY).appendString("" + millsSeconds).appendByte((byte) '\n');
+                    s = s | FLAG_STATUS_RETRY;
+                    return this;
+                }
+
+                @Override
+                public Event data(String data) {
+                    if ((s & FLAG_STATUS_DATA) != 0) throw new IllegalStateException("Data already set");
+                    b.appendBytes(FIELD_data).appendString(data).appendByte((byte) '\n');
+                    s = s | FLAG_STATUS_DATA;
+                    return this;
+
+                }
+
+                @Override
+                public Event data(JsonObject data) {
+                    if ((s & FLAG_STATUS_DATA) != 0) throw new IllegalStateException("Data already set");
+                    b.appendBytes(FIELD_data).appendBuffer(data.toBuffer()).appendByte((byte) '\n');
+                    s = s | FLAG_STATUS_DATA;
+                    return this;
+                }
+
+                @Override
+                public Event data(JsonArray data) {
+                    if ((s & FLAG_STATUS_DATA) != 0) throw new IllegalStateException("Data already set");
+                    b.appendBytes(FIELD_data).appendBuffer(data.toBuffer()).appendByte((byte) '\n');
+                    s = s | FLAG_STATUS_DATA;
+                    return this;
+                }
+            }
+        }
+
+
+        default EventEmitter $write(Buffer value) {
+            var r = $it();
+            r.write(value);
+            return this;
+        }
+
+        default EventEmitter send(Event event) {
+            var b = event.$it();
+            b.appendByte((byte) '\n');
+            $write(b);
+            return this;
+        }
+
+        default EventEmitter sendData(String value) {
+            $write(Buffer.buffer("data:")
+                    .appendString(value)
+                    .appendString("\n\n"));
+            return this;
+        }
+
+        default EventEmitter sendData(JsonObject value) {
+            $write(Buffer.buffer("data:")
+                    .appendString(value.encode())
+                    .appendString("\n\n"));
+            return this;
+        }
+
+        default EventEmitter send(UnaryOperator<Event> eventMaker) {
+            var event = eventMaker.apply(new Event.evt());
+            var b = event.$it();
+            b.appendByte((byte) '\n');
+            $write(b);
+            return this;
+        }
+
+        default EventEmitter send(Consumer<Event> eventMaker) {
+            var event = new Event.evt();
+            eventMaker.accept(event);
+            var b = event.$it();
+            b.appendByte((byte) '\n');
+            $write(b);
+            return this;
+        }
+
+        default EventEmitter open() {
+            return $write(Buffer.buffer("event:open\n\n"));
+        }
+
+        default boolean closed() {
+            return $it().ended() || $it().closed();
+        }
+
+        default void close() {
+            if (!closed())
+                $it().end();
+        }
+
     }
 }
