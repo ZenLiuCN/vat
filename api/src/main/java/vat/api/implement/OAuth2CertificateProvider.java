@@ -156,6 +156,7 @@ public interface OAuth2CertificateProvider {
 
     Predicate<User> DEFUALT_REFRESH_TOKEN_PREDICATE = user -> user.principal().getString("refresh_token") != null;
     Function<User, String> DEFAULT_ACCESS_TOKEN_READER = user -> user.principal().getString("access_token");
+    Function<User, String> DEFAULT_SUBJECTOR = User::subject;
 
     record OAuthProvider(
             Logger log,
@@ -173,6 +174,7 @@ public interface OAuth2CertificateProvider {
             UnaryOperator<Oauth2Credentials> credentialsConfigurator,
             UnaryOperator<String> blackIdentity,
             Function<User, String> accessTokenReader,
+            Function<User, String> subjector,
             Predicate<User> hasProfilePredicate,
             Predicate<User> refreshTokenPredicate,
             ///Caches
@@ -180,6 +182,35 @@ public interface OAuth2CertificateProvider {
             Cache<@NotNull String, User> users,
             Cache<@NotNull String, Boolean> blackSheep
     ) {
+        public OAuthProvider(
+                Logger log,
+                /// OAuth auth
+                OAuth2Auth auth,
+                /// full callback uri
+                String callback,
+                /// authenticate scopes
+                List<String> scopes,
+                /// offline mode support refresh token
+                boolean offline,
+                /// configurator for extra parameters.
+                UnaryOperator<OAuth2AuthorizationURL> urlConfigurator,
+                /// configurator for Phase two request.
+                UnaryOperator<Oauth2Credentials> credentialsConfigurator,
+                UnaryOperator<String> blackIdentity,
+                Function<User, String> accessTokenReader,
+                Predicate<User> hasProfilePredicate,
+                Predicate<User> refreshTokenPredicate,
+                ///Caches
+                Cache<@NotNull String, String> authority,
+                Cache<@NotNull String, User> users,
+                Cache<@NotNull String, Boolean> blackSheep
+        ) {
+            this(
+                    log, auth, callback, scopes, offline, urlConfigurator, credentialsConfigurator, blackIdentity, accessTokenReader, DEFAULT_SUBJECTOR, hasProfilePredicate, refreshTokenPredicate,
+                    authority, users, blackSheep
+            );
+        }
+
         public Future<String> authorizePhaseOne(String state, String callback) {
             return Future.<String>future(p -> {
                         if (authority.getIfPresent(state) != null)
@@ -199,9 +230,9 @@ public interface OAuth2CertificateProvider {
             var cb = authority.getIfPresent(state);
             if (cb == null) return Future.failedFuture(DomainError.System.badRequest("missing required state"));
             return auth.authenticate(Fn.log(credentialsConfigurator.apply(new Oauth2Credentials()
-                            .setFlow(OAuth2FlowType.AUTH_CODE)
-                            .setCode(code)
-                            .setRedirectUri(this.callback)),
+                                    .setFlow(OAuth2FlowType.AUTH_CODE)
+                                    .setCode(code)
+                                    .setRedirectUri(this.callback)),
                             log.isDebugEnabled(), log::info, "authenticate info {}"))
                     .map(s -> new UserCallback(s, cb, state))
                     .onSuccess($ -> authority.invalidate(state))
@@ -234,11 +265,11 @@ public interface OAuth2CertificateProvider {
         }
 
         private void usersUpdate(User u) {
-            users.put(u.subject(), u);
+            users.put(subjector.apply(u), u);
         }
 
         private Handler<Object> usersInvalidate(User u) {
-            return $ -> users.invalidate(u.subject());
+            return $ -> users.invalidate(subjector.apply(u));
         }
 
         public Future<User> refresh(User user) {
