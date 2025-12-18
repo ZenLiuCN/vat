@@ -331,6 +331,7 @@ public interface Excels {
         PropertyFactory<LocalDateTime> DATETIME_PROPERTY = (c, n, i) -> new Property<>(c, n, DATETIME, CommonCodec.JAVA_TIME__LOCAL_DATE_TIME, i);
         PropertyFactory<OffsetDateTime> DATETIME_TZ_PROPERTY = (c, n, i) -> new Property<>(c, n, DATETIME_OF, CommonCodec.JAVA_TIME__OFFSET_DATE_TIME, i);
         PropertyFactory<Instant> INSTANT_PROPERTY = (c, n, i) -> new Property<>(c, n, INSTANT, Codec.INSTANT, i);
+
     }
 
     /// FastExcel  required.
@@ -685,7 +686,7 @@ public interface Excels {
         }
 
 
-        /// read sheet to list of object
+        /// write sheet from list of object
         ///
         /// @param sheet      the sheet name or empty
         /// @param title      write a title row
@@ -1033,7 +1034,6 @@ public interface Excels {
                 List<Property<?>> properties,
                 Function<JsonObject, T> creator
         ) implements ExcelWriter.SheetData<T>, ExcelReader.SheetData<T> {
-
             public static class EntityBuilder<T extends Data> {
                 public <P> EntityBuilder<T> property(UnaryOperator<Property.PropertyBuilder<P>> make) {
                     var o = properties instanceof ArrayList<?> a ? properties : new ArrayList<>(properties == null ? List.of() : properties);

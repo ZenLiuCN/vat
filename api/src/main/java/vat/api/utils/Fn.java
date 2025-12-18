@@ -568,7 +568,13 @@ public interface Fn {
         static <T, R> Function<Optional<T>, Optional<R>> ifPresent(Function<T, R> act, Supplier<Optional<R>> orElse) {
             return v -> v.map(act).or(orElse);
         }
-
+        static <T> UnaryOperator<Optional<T>> ifPresent(Consumer<? super T> act, Runnable orElse) {
+            return v -> {
+                if(v.isPresent()) act.accept(v.get());
+                else orElse.run();
+                return v;
+            };
+        }
         static <T> Function<Optional<T>, T> orElseThrow(Supplier<DomainError> err) {
             return v -> {
                 if (v.isEmpty()) throw err.get();
@@ -630,22 +636,24 @@ public interface Fn {
             return copy;
         }
 
-        static <T> T onlyFirst(Collection<T> v) {
+        static <T> T onlyFirst(Collection<? extends T> v) {
             if (v != null && v.size() == 1) return v.iterator().next();
             throw DomainError.System.conflict("duplicate or missing value");
         }
 
-        static <K, V, M extends Map<K, V>> Function<M, List<List<Object>>> nullSafeMapMapping(Function<K, Object> km, Function<V, Object> vm) {
-            return t -> t == null ? null : t.entrySet().stream().map(e -> List.of(km.apply(e.getKey()), vm.apply(e.getValue())))
+        static <K, V, M extends Map<?extends K, ?extends V>,R> Function<? extends M, List<List<R>>> nullSafeMapMapping(Function<? super K, ? extends R> km, Function< ? super V,  ? extends R> vm) {
+            return t -> t == null ? null : t.entrySet()
+                    .stream()
+                    .map(e -> List.of(km.apply(e.getKey()), vm.apply(e.getValue())))
                     .toList();
         }
 
-        static <V, M extends Collection<V>> Function<M, List<Object>> nullSafeCollectionMapping(Function<V, Object> vm) {
+        static <V, M extends Collection<V>,R> Function<? super M, List<? extends R>> nullSafeCollectionMapping(Function<? super V, ? extends R> vm) {
             return t -> t == null ? null : t.stream().map(vm).toList();
         }
 
 
-        static <T> Function<List<T>, List<T>> filter(Predicate<T> a) {
+        static <T> Function<List<T>, List<T>> filter(Predicate<? super T> a) {
             return v -> v.stream().filter(a).toList();
         }
 
@@ -657,25 +665,28 @@ public interface Fn {
             return Collections::unmodifiableList;
         }
 
-        static <T, R> Function<List<T>, R> reduce(Supplier<R> id, BiFunction<R, T, R> acc, BinaryOperator<R> comb) {
+        static <T, R> Function<List<T>, R> reduce(Supplier<R> id, BiFunction< R, ? super T, R> acc, BinaryOperator<R> comb) {
             return t -> t.stream().reduce(id.get(), acc, comb);
         }
 
-        static <T, K> Function<List<T>, Map<K, List<T>>> group(Function<T, K> classifier) {
+        static <T, K> Function<List<? extends T>, Map<? extends K, ? extends List<? extends T>>> group(Function<? super T, ? extends K> classifier) {
             return t -> t.stream().collect(Collectors.groupingBy(classifier));
         }
 
-        static <T, K> Function<List<T>, Map<K, T>> toMap(Function<T, K> classifier) {
+        static <T, K> Function<List<? extends T>, Map<? extends K, ? extends T>> toMap(Function<? super T, ? extends K> classifier) {
             return t -> t.stream().collect(Collectors.toMap(classifier, Function.identity()));
         }
 
-        static <T, K> Map<K, T> toMap(List<Tuple2<K, T>> t) {
+        static <T, K> Map<? extends K, ? extends T> toMap(List<Tuple2<? extends K, ? extends T>> t) {
             return t.stream().collect(Collectors.toMap(Tuple2::v1, Tuple2::v2));
         }
 
         interface Flat {
+            static <T, K, KS extends Collection<? extends K>> Future<List<? extends T>> all(KS ks, Function<? super K, ? extends Future<? extends T>> one) {
+                return all(ks.stream().map(one).toList());
+            }
 
-            static <T> Function<List<T>, Future<List<T>>> filter(Function<T, Future<Boolean>> a) {
+            static <T> Function<List<? extends T>, Future<List<? extends T>>> filter(Function<? super T, Future<Boolean>> a) {
                 return v -> Future.join(v.stream().map(x -> a.apply(x).map(s -> s ? x : null)).toList())
                         .map(x -> x.<T>list().stream().filter(Objects::nonNull).toList());
             }
@@ -697,8 +708,10 @@ public interface Fn {
                 return result;
             }
 
-            static <T, K> Function<List<T>, Future<Map<K, List<T>>>> group(Function<T, Future<K>> classifier) {
-                return t -> Future.join(t.stream().map(x -> classifier.apply(x).map(i -> Map.entry(i, x))).toList())
+            static <T, K> Function<List<? extends T>, Future<Map<K, List<T>>>> group(Function<? super T, Future<? extends K>> classifier) {
+                return t -> Future.join(t.stream()
+                                .map(x -> classifier.apply(x).map(i -> Map.entry(i, x)))
+                                .toList())
                         .map(CompositeFuture::<Map.Entry<K, T>>list)
                         .map(entries -> entries
                                 .stream()
@@ -711,14 +724,14 @@ public interface Fn {
             /**
              * auto filtered for null value
              */
-            static <T> Future<List<T>> all(List<? extends Future<T>> futures) {
+            static <T> Future<List<? extends T>> all(List<? extends Future<? extends T>> futures) {
                 return Future.all(futures.stream().filter(Objects::nonNull).toList()).map(CompositeFuture::list);
             }
 
             /**
              * auto filtered for null value
              */
-            static <T> Future<List<T>> allFlatten(List<? extends Future<? extends List<T>>> futures) {
+            static <T> Future<List<? extends T>> allFlatten(List<? extends Future<? extends List<? extends T>>> futures) {
                 return Future.all(futures.stream().filter(Objects::nonNull).toList())
                         .map(CompositeFuture::<List<T>>list)
                         .map(v -> v.stream().flatMap(Collection::stream).toList());
@@ -727,7 +740,7 @@ public interface Fn {
             /**
              * auto filtered for null value
              */
-            static <T> Future<List<T>> joinFlatten(List<? extends Future<List<T>>> list) {
+            static <T> Future<List<? extends T>> joinFlatten(List<? extends Future<List<? extends T>>> list) {
                 return Future.join(list.stream().filter(Objects::nonNull).toList())
                         .map(CompositeFuture::<List<T>>list)
                         .map(s -> s.stream().flatMap(Collection::stream).toList());
@@ -736,11 +749,11 @@ public interface Fn {
             /**
              * Auto filtered for null value
              */
-            static <T> Future<List<T>> join(List<? extends Future<T>> list) {
+            static <T> Future<List<? extends T>> join(List<? extends Future<? extends T>> list) {
                 return Future.join(list.stream().filter(Objects::nonNull).toList()).map(CompositeFuture::list);
             }
 
-            static <T> Future<List<Result<T>>> joinResultFlatten(List<? extends Future<List<T>>> list) {
+            static <T> Future<List<Result<T>>> joinResultFlatten(List<? extends Future<List<? extends T>>> list) {
                 return Future.join(list.stream().filter(Objects::nonNull).toList())
                         .transform(r -> {
                             var x = r.result();
@@ -757,7 +770,7 @@ public interface Fn {
                         });
             }
 
-            static <T> Future<List<Result<T>>> joinResult(List<? extends Future<T>> list) {
+            static <T> Future<List<Result<T>>> joinResult(List<? extends Future<? extends T>> list) {
                 return Future.join(list.stream().filter(Objects::nonNull).toList())
                         .transform(r -> {
                             var x = r.result();
