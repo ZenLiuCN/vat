@@ -340,7 +340,7 @@ public record Context(
     public String signatureName(Element who, TypeMirror type) {
         if (type.getKind() == TypeKind.DECLARED) {
             var fieldType = typeElementOf(type);
-            assert fieldType != null : "missing field type of " + type;
+            assert fieldType != null : "missing field type of " + type+ " of "+who;
             if (fieldType.getTypeParameters().isEmpty()) {
                 return simpleCodecNameOf(packageOf(fieldType), fieldType);
             }
@@ -366,7 +366,7 @@ public record Context(
             var ta = lookupTypeParameter(who, w);
             return (ta == null ? w.asElement().getSimpleName().toString() : signatureName(who, ta)) + "_$$";
         } else
-            throw new IllegalArgumentException("Unsupported type: " + type.getKind());
+            throw new IllegalArgumentException("Unsupported type: " + type.getKind()+ " of "+who);
     }
 
     private TypeMirror lookupTypeParameter(Element who, TypeVariable w) {
