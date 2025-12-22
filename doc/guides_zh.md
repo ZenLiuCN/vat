@@ -324,7 +324,7 @@ customers-node/
    + 常用一级访问方法: S 代表当前仓库操作实体,T代表定义的Entity
      + `xxx()`: 字段访问器, 获取对应字段的存储访问器,用于构造存储表达式
      + 仓库操作方法:
-       + 通用命名规则:　`put` 存储新的实体, `set` 更新实体属性, `one` 加载一个实体 `many|any` 加载若干实体
+       + 通用命名规则: `put` 存储新的实体, `set` 更新实体属性, `one` 加载一个实体 `many|any` 加载若干实体
        + `Future<Void> remove(long actor,long id)`: 按ID移除一个实体(逻辑删除)
        + `Future<Void> remove(long actor,long id,int version)`: 按ID和版本号移除一个实体(逻辑删除)
        + `Future<Integer> removeAny(long actor, Function<S, Value.BooleanValue> cond)`: 按条件表达式移除若干实体(逻辑删除)
