@@ -3,7 +3,7 @@ package vat.api.meta;
 import java.lang.annotation.*;
 
 /**
- * a compute field default value.
+ * a virtual field stored in other JsonObject field.
  *
  * @author Zen.Liu
  * @since 2025-10-20

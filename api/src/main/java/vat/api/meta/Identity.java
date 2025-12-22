@@ -33,4 +33,12 @@ public @interface Identity {
         /// provide activity domain identity
         String provide() default "";
     }
+    /// mark an identity type field reference to an Entity
+    @Retention(RetentionPolicy.CLASS)
+    @Target(ElementType.METHOD)
+    @Documented
+    @interface Refer {
+        /// full identity Identifier
+        String value();
+    }
 }

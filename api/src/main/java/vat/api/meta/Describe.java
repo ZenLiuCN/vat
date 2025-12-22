@@ -22,10 +22,5 @@ public @interface Describe {
     /// name
     String value();
 
-    /// domain or Activities when use fill identity name
-    Class<?> domain() default void.class;
-
-    /// ID method or full domain identity
-    String identity() default "identity";
 
 }
