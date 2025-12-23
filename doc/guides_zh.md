@@ -346,9 +346,9 @@ customers-node/
       + `public Xxx(Vertx vertx,@Nullable String address， Pool sql, Dialect dialect, JsonObject conf)`： 定义了`@Storage`仓库依赖的上下文,未定义`@Enhance(endpoint=true)`
       + `public Xxx(Vertx vertx,@Nullable String address，vat.api.implement.Web.Factory web, Pool sql, Dialect dialect, JsonObject conf)`： 定义了`@Storage`仓库依赖以及`@Enhance(endpoint=true)`依赖的上下文
     + 实现类应当包含以下两个注解
-      + `@AutoService(Activities.class)`: 启用SPI自动生成 (或手动编码SPI协议)
+      + `@AutoService(Activities.class)`: 启用SPI自动生成 (或手动编码SPI协议文件)
       + `@Activity(mode=Activity.Mode.COMPOENT,autp=true)`: 部署模式配置
-    + 实现类必须具有公开无参数构造函数: 用于满足SPI协议
+    + 实现类必须具有公开无参数构造函数: 用于满足SPI协议, 其中父类的构造函数也应当调用对应无参数构造函数
 
 
 

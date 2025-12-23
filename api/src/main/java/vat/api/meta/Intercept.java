@@ -1,5 +1,6 @@
 package vat.api.meta;
 
+import vat.api.implement.Interceptors;
 import vat.api.implement.Validators;
 
 import java.lang.annotation.*;
@@ -22,7 +23,7 @@ public @interface Intercept {
     String value();
 
     /// holder interface or class for interceptor field
-    Class<?> holder() default Validators.class;
+    Class<?> holder() default Interceptors.class;
 
     @Retention(RetentionPolicy.CLASS)
     @Target(ElementType.METHOD)

@@ -44,7 +44,7 @@ public @interface Column {
     /// use enumerate name instead of ordinal
     boolean enumName() default false;
 
-    /// static field name hold a {@link activate.api.store.Interceptor}.
+    /// static field name hold a {@link vat.api.store.Interceptor}.
     String interceptField() default "";
 
     /// class contains the interceptor, default is current owner class.

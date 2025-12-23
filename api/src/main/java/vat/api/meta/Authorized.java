@@ -28,7 +28,8 @@ public @interface Authorized {
     String value() ;
     /// context bad request error provider: when {@link #allowSystem()} is false and request not contains actor.
     String badRequest() default "";
-    /// context forbidden error provider: this may have signature `BiFunction<InputType,Ability?,DomainError>` or `Provider<DomainError>`
+    /// context forbidden error provider: this may have signature
+    /// `BiFunction<InputType,Ability?,DomainError>` or `Provider<DomainError>`
     String forbidden() default "";
 
 }
