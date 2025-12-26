@@ -6,8 +6,11 @@ import org.jetbrains.annotations.Nullable;
 import vat.api.DomainError;
 
 import java.util.*;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.*;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
@@ -338,7 +341,7 @@ public sealed interface Pipeline<C, T extends @Nullable Object, S extends Pipeli
                 if (items == null) return Future.succeededFuture(new ArrayList<>());
                 return StreamSupport.stream(items.spliterator(), false)
                                     .reduce(
-                                            Future.succeededFuture(new ArrayList<R>()),
+                                            Future.succeededFuture(new ArrayList<>()),
                                             (future, item) -> future.flatMap(list ->
                                                                                      mapper.apply(item).map(res -> {
                                                                                          list.add(res);
@@ -359,11 +362,26 @@ public sealed interface Pipeline<C, T extends @Nullable Object, S extends Pipeli
                 List<I> itemList = StreamSupport.stream(items.spliterator(), false).toList();
                 if (itemList.isEmpty()) return Future.succeededFuture(new ArrayList<>());
                 Promise<List<R>> promise = Promise.promise();
-                List<R> results = new java.util.concurrent.CopyOnWriteArrayList<>();
-                java.util.concurrent.atomic.AtomicInteger index = new java.util.concurrent.atomic.AtomicInteger(0);
-                java.util.concurrent.atomic.AtomicInteger active = new java.util.concurrent.atomic.AtomicInteger(0);
-                java.util.concurrent.atomic.AtomicReference<Throwable> error = new java.util.concurrent.atomic.AtomicReference<>();
-                Runnable next = new Runnable() {
+                record TraverseRunner<R extends @Nullable Object, I>(
+                        List<I> itemList,
+                        Promise<List<R>> promise,
+                        Function<I, Future<R>> mapper,
+                        AtomicReference<Throwable> error,
+                        AtomicInteger index,
+                        AtomicInteger active,
+                        List<R> results
+                ) implements Runnable {
+                    public TraverseRunner(List<I> itemList, Promise<List<R>> promise,
+                                          Function<I, Future<R>> mapper) {
+                        this(itemList, promise, mapper,
+                             new AtomicReference<>(),
+                             new AtomicInteger(0),
+                             new AtomicInteger(0),
+                             new CopyOnWriteArrayList<>()
+                            );
+
+                    }
+
                     @Override
                     public void run() {
                         if (error.get() != null) return;
@@ -388,7 +406,8 @@ public sealed interface Pipeline<C, T extends @Nullable Object, S extends Pipeli
                             }
                         });
                     }
-                };
+                }
+                Runnable next = new TraverseRunner<>(itemList, promise, mapper);
                 // Fill the "pipe" up to the concurrency limit
                 for (int j = 0; j < Math.min(concurrency, itemList.size()); j++) {
                     next.run();
@@ -400,6 +419,7 @@ public sealed interface Pipeline<C, T extends @Nullable Object, S extends Pipeli
         default Batch<C, I, List<I>> filterPar(Function<I, Future<Boolean>> predicate) {
             Future<List<I>> filtered = get().flatMap(items -> {
                 if (items == null) return Future.succeededFuture(List.of());
+                record Pair<K, V>(K key, V value) {}
                 return Future.all(StreamSupport.stream(items.spliterator(), false)
                                                .map(i -> predicate.apply(i).map(match -> new Pair<>(i, match)))
                                                .toList()
@@ -452,7 +472,7 @@ public sealed interface Pipeline<C, T extends @Nullable Object, S extends Pipeli
                                                     ));
         }
 
-        record Pair<K, V>(K key, V value) {}
+
     }
 
     /// convert to a Batch pipe
