@@ -5,12 +5,11 @@ import io.vertx.core.*;
 import org.jetbrains.annotations.Nullable;
 import vat.api.DomainError;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.function.*;
+import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
 ///  Pipeline tools
@@ -319,10 +318,13 @@ public sealed interface Pipeline<C, T extends @Nullable Object, S extends Pipeli
             }
         }
 
-        // --- Terminal Operations (Returns to Simple Pipeline) ---
+        default <R extends @Nullable Object> Batch<C, R, List<R>> traverse(Function<I, R> predicate) {
+            return Batch.of(context(), get().map(
+                    i -> i == null ? null : StreamSupport.stream(i.spliterator(), false).map(predicate).toList()));
+        }
 
-        default <R> Simple<C, List<R>> traverse(Function<I, Future<R>> mapper) {
-            return new Simple<>(context(), get().flatMap(items -> {
+        default <R extends @Nullable Object> Batch<C, R, List<R>> traversePar(Function<I, Future<R>> mapper) {
+            return new batch<>(context(), get().flatMap(items -> {
                 if (items == null) return Future.succeededFuture(List.of());
                 var futures = StreamSupport.stream(items.spliterator(), false)
                                            .map(mapper)
@@ -331,51 +333,68 @@ public sealed interface Pipeline<C, T extends @Nullable Object, S extends Pipeli
             }));
         }
 
-        default <R> Simple<C, List<R>> seq(Function<I, Future<R>> mapper) {
-            return new Simple<>(context(), get().flatMap(items -> {
+        default <R extends @Nullable Object> Batch<C, R, List<R>> traverseSeq(Function<I, Future<R>> mapper) {
+            return new batch<>(context(), get().flatMap(items -> {
                 if (items == null) return Future.succeededFuture(new ArrayList<>());
-                List<R> results = new ArrayList<>();
-                Future<Void> sequentialChain = Future.succeededFuture();
-                for (I item : items) {
-                    // Chain each future to the previous one
-                    sequentialChain = sequentialChain.flatMap(v ->
-                                                                      mapper.apply(item).map(result -> {
-                                                                          results.add(result);
-                                                                          return null;
-                                                                      })
-                                                             );
-                }
-
-                return sequentialChain.map(v -> results);
+                return StreamSupport.stream(items.spliterator(), false)
+                                    .reduce(
+                                            Future.succeededFuture(new ArrayList<R>()),
+                                            (future, item) -> future.flatMap(list ->
+                                                                                     mapper.apply(item).map(res -> {
+                                                                                         list.add(res);
+                                                                                         return list;
+                                                                                     })
+                                                                            ),
+                                            (f1, f2) -> f1 // Combiner (not used in sequential)
+                                           );
             }));
         }
 
-        default <R> Simple<C, R> reduce(R identity, BiFunction<R, I, R> accumulator) {
-            return new Simple<>(context(), get().map(items -> {
-                if (items == null) return identity;
-                R res = identity;
-                for (I item : items) res = accumulator.apply(res, item);
-                return res;
-            }));
-        }
-
-        // --- Batch-to-Batch Operations ---
-        default <R> Batch<C, R, List<R>> seqPar(Function<I, Future<R>> mapper) {
-            return new batch<>(context(), get()
-                    .flatMap(items -> {
-                        if (items == null) return Future.succeededFuture(new ArrayList<>());
-                        List<R> results = new ArrayList<>();
-                        Future<Void> sequentialChain = Future.succeededFuture();
-                        for (I item : items) {
-                            sequentialChain = sequentialChain.flatMap(v ->
-                                                                              mapper.apply(item).map(result -> {
-                                                                                  results.add(result);
-                                                                                  return null;
-                                                                              })
-                                                                     );
+        default <R extends @Nullable Object> Batch<C, R, List<R>> traversePar(int concurrency,
+                                                                              Function<I, Future<R>> mapper) {
+            if (concurrency <= 0) return traversePar(mapper);
+            if (concurrency == 1) return traverseSeq(mapper);
+            return new batch<>(context(), get().flatMap(items -> {
+                if (items == null) return Future.succeededFuture(new ArrayList<>());
+                List<I> itemList = StreamSupport.stream(items.spliterator(), false).toList();
+                if (itemList.isEmpty()) return Future.succeededFuture(new ArrayList<>());
+                Promise<List<R>> promise = Promise.promise();
+                List<R> results = new java.util.concurrent.CopyOnWriteArrayList<>();
+                java.util.concurrent.atomic.AtomicInteger index = new java.util.concurrent.atomic.AtomicInteger(0);
+                java.util.concurrent.atomic.AtomicInteger active = new java.util.concurrent.atomic.AtomicInteger(0);
+                java.util.concurrent.atomic.AtomicReference<Throwable> error = new java.util.concurrent.atomic.AtomicReference<>();
+                Runnable next = new Runnable() {
+                    @Override
+                    public void run() {
+                        if (error.get() != null) return;
+                        int i = index.getAndIncrement();
+                        if (i >= itemList.size()) {
+                            if (active.get() == 0 && !promise.future().isComplete()) {
+                                // Sort results if order is required, or return as is
+                                promise.complete(new ArrayList<>(results));
+                            }
+                            return;
                         }
-                        return sequentialChain.map(v -> results);
-                    }));
+                        active.incrementAndGet();
+                        mapper.apply(itemList.get(i)).onComplete(ar -> {
+                            active.decrementAndGet();
+                            if (ar.succeeded()) {
+                                results.add(ar.result());
+                                run(); // Process next item
+                            } else {
+                                if (error.compareAndSet(null, ar.cause())) {
+                                    promise.fail(ar.cause());
+                                }
+                            }
+                        });
+                    }
+                };
+                // Fill the "pipe" up to the concurrency limit
+                for (int j = 0; j < Math.min(concurrency, itemList.size()); j++) {
+                    next.run();
+                }
+                return promise.future();
+            }));
         }
 
         default Batch<C, I, List<I>> filterPar(Function<I, Future<Boolean>> predicate) {
@@ -390,6 +409,47 @@ public sealed interface Pipeline<C, T extends @Nullable Object, S extends Pipeli
                                                .toList());
             });
             return Batch.of(context(), filtered);
+        }
+
+        default Batch<C, I, List<I>> filter(Predicate<I> predicate) {
+            return Batch.of(context(), get().map(
+                    i -> i == null ? null : StreamSupport.stream(i.spliterator(), false).filter(predicate).toList()));
+        }
+
+
+        default <K> Simple<C, Map<K, List<I>>> groupBy(Function<I, K> classifier) {
+            return new Simple<>(context(), get().map(items ->
+                                                             items == null ? new HashMap<>() :
+                                                                     StreamSupport.stream(items.spliterator(), false)
+                                                                                  .collect(
+                                                                                          Collectors.groupingBy(
+                                                                                                  classifier))
+                                                    ));
+        }
+
+        default <K, V> Simple<C, Map<K, List<V>>> groupBy(
+                Function<I, K> classifier,
+                Function<I, V> valueMapper) {
+            return new Simple<>(context(), get().map(items ->
+                                                             items == null ? new HashMap<>() :
+                                                                     StreamSupport.stream(items.spliterator(), false)
+                                                                                  .collect(
+                                                                                          Collectors.groupingBy(
+                                                                                                  classifier,
+                                                                                                  Collectors.mapping(
+                                                                                                          valueMapper,
+                                                                                                          Collectors.toList())
+                                                                                                               ))
+                                                    ));
+        }
+
+        default <R> Simple<C, R> reduce(R identity, BiFunction<R, I, R> accumulator) {
+            return new Simple<>(context(), get().map(items ->
+                                                             items == null ? identity :
+                                                                     StreamSupport.stream(items.spliterator(), false)
+                                                                                  .reduce(identity, accumulator,
+                                                                                          (a, b) -> a)
+                                                    ));
         }
 
         record Pair<K, V>(K key, V value) {}
