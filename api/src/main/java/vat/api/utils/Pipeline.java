@@ -41,7 +41,7 @@ public sealed interface Pipeline<C, T, S extends Pipeline<C, ?, S>> {
         return new Simple<>(context, Future.succeededFuture(value));
     }
 
-    /// factory from a exists future
+    /// factory from an existsed future
     static <C, T> Simple<C, T> of(C context, Future<T> value) {
         return new Simple<>(context, value);
     }
@@ -301,10 +301,9 @@ public sealed interface Pipeline<C, T, S extends Pipeline<C, ?, S>> {
                           .map(cf -> (T) cf.result()));
     }
 
-    /// race with another pipe
-    @SuppressWarnings("unchecked")
+
     default Pipeline<C, T, S> raceWith(Pipeline<C, T, ?> other) {
-        return wrap(Future.any(this.get(), other.get()).map(cf -> (T) cf.resultAt(0)));
+        return wrap(Future.any(this.get(), other.get()).map(cf -> cf.resultAt(0)));
     }
 
     /// tap the error
@@ -1057,13 +1056,7 @@ public sealed interface Pipeline<C, T, S extends Pipeline<C, ?, S>> {
                 return (ctx, in) -> this.process(ctx, in).flatMap(items -> {
                     var list = StreamSupport.stream(items.spliterator(), false).toList();
                     var checks = list.stream().map(predicate).toList();
-                    return Future.all(checks).map(cf -> {
-                        var results = new java.util.ArrayList<E>();
-                        for (int i = 0; i < list.size(); i++) {
-                            if (cf.<Boolean>resultAt(i)) results.add(list.get(i));
-                        }
-                        return results;
-                    });
+                    return listFuture((List<E>) list, checks);
                 });
             }
 
@@ -1071,13 +1064,17 @@ public sealed interface Pipeline<C, T, S extends Pipeline<C, ?, S>> {
                 return (ctx, in) -> this.process(ctx, in).flatMap(items -> {
                     var list = StreamSupport.stream(items.spliterator(), false).toList();
                     var checks = list.stream().map(i -> predicate.apply(ctx, i)).toList();
-                    return Future.all(checks).map(cf -> {
-                        var results = new java.util.ArrayList<E>();
-                        for (int i = 0; i < list.size(); i++) {
-                            if (cf.<Boolean>resultAt(i)) results.add(list.get(i));
-                        }
-                        return results;
-                    });
+                    return listFuture((List<E>) list, checks);
+                });
+            }
+
+            private static <E> Future<List<E>> listFuture(List<E> list, List<Future<Boolean>> checks) {
+                return Future.all(checks).map(cf -> {
+                    var results = new ArrayList<E>();
+                    for (int i = 0; i < list.size(); i++) {
+                        if (cf.<Boolean>resultAt(i)) results.add(list.get(i));
+                    }
+                    return results;
                 });
             }
 
@@ -1119,42 +1116,6 @@ public sealed interface Pipeline<C, T, S extends Pipeline<C, ?, S>> {
                                             );
             }
 
-            default <K, V> Monadic<C, I, Map<K, List<V>>> groupPar(Function<E, Future<Map.Entry<K, V>>> asyncMapper) {
-                return (ctx, in) -> this.process(ctx, in)
-                                        .flatMap(items -> Future.all(StreamSupport
-                                                                             .stream(items.spliterator(), false)
-                                                                             .map(asyncMapper)
-                                                                             .toList())
-                                                                .map(cf -> {
-                                                                    Map<K, List<V>> result = new HashMap<>();
-                                                                    for (int i = 0; i < cf.size(); i++) {
-                                                                        Map.Entry<K, V> entry = cf.resultAt(i);
-                                                                        result.computeIfAbsent(entry.getKey(),
-                                                                                               k -> new ArrayList<>())
-                                                                              .add(entry.getValue());
-                                                                    }
-                                                                    return result;
-                                                                }));
-            }
-
-            default <K, V> Monadic<C, I, Map<K, List<V>>> groupParCtx(
-                    BiFunction<C, E, Future<Map.Entry<K, V>>> asyncMapper) {
-                return (ctx, in) -> this.process(ctx, in)
-                                        .flatMap(items -> Future.all(StreamSupport
-                                                                             .stream(items.spliterator(), false)
-                                                                             .map(i -> asyncMapper.apply(ctx, i))
-                                                                             .toList())
-                                                                .map(cf -> {
-                                                                    Map<K, List<V>> result = new HashMap<>();
-                                                                    for (int i = 0; i < cf.size(); i++) {
-                                                                        Map.Entry<K, V> entry = cf.resultAt(i);
-                                                                        result.computeIfAbsent(entry.getKey(),
-                                                                                               k -> new ArrayList<>())
-                                                                              .add(entry.getValue());
-                                                                    }
-                                                                    return result;
-                                                                }));
-            }
 
             default <R> Monadic<C, I, R> reduce(R identity, BiFunction<R, E, R> accumulator) {
                 return (ctx, in) -> this.process(ctx, in).map(items ->
