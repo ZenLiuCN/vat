@@ -5,6 +5,7 @@ import io.vertx.core.json.JsonObject;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.experimental.Accessors;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.Optional;
 import java.util.function.BiFunction;
@@ -16,6 +17,7 @@ import java.util.function.Predicate;
 /// @since 2025-11-12
 
 
+@SuppressWarnings("unused")
 public interface Environment {
     Function<String, String> PROPERTY_ENV = Cases.convert(Cases.LOWER_QUALIFIED_CASE, Cases.UPPER_SNAKE_CASE);
     Function<String, String> POINTER_ENV = s -> {
@@ -25,9 +27,9 @@ public interface Environment {
 
     static <T> Optional<T> of(String key, Function<String, T> decode) {
         return Optional.ofNullable(System.getProperty(key))
-                .or(() -> Optional.ofNullable(System.getenv(PROPERTY_ENV.apply(key))))
-                .filter(Predicate.not(String::isBlank))
-                .map(decode);
+                       .or(() -> Optional.ofNullable(System.getenv(PROPERTY_ENV.apply(key))))
+                       .filter(Predicate.not(String::isBlank))
+                       .map(decode);
     }
 
     static Optional<String> string(String key) {
@@ -42,7 +44,8 @@ public interface Environment {
         return of(key, Integer::parseInt);
     }
 
-    static <T> Lazy<T> argument(String key, Function<String, T> decode, BiFunction<Pointer, JsonObject, Optional<T>> reader) {
+    static <T> Lazy<T> argument(String key, Function<String, T> decode,
+                                BiFunction<Pointer, JsonObject, Optional<T>> reader) {
         return new Lazy<>(key, decode, reader);
     }
 
@@ -75,10 +78,15 @@ public interface Environment {
     @Accessors(fluent = true)
     final class Lazy<T> {
         @Getter
+        @Nullable
         private String key;
+        @Nullable
         private JsonObject config;
+        @Nullable
         private T value;
+        @Nullable
         private Function<String, T> decode;
+        @Nullable
         private BiFunction<Pointer, JsonObject, Optional<T>> reader;
 
         public Lazy<T> config(JsonObject config) {
@@ -95,14 +103,15 @@ public interface Environment {
 
         public Optional<T> get() {
             if (decode == null) return Optional.ofNullable(value);
+            //noinspection DataFlowIssue
             var v = Optional.ofNullable(config)
-                    .flatMap(j -> reader.apply(Pointer.of(POINTER_ENV.apply(key)), j))
-                    .or(() -> Optional
-                            .ofNullable(System.getProperty(key))
-                            .or(() -> Optional.ofNullable(System.getenv(PROPERTY_ENV.apply(key))))
-                            .filter(Predicate.not(String::isBlank))
-                            .map(decode)
-                    );
+                            .flatMap(j -> reader.apply(Pointer.of(POINTER_ENV.apply(key)), j))
+                            .or(() -> Optional
+                                    .ofNullable(System.getProperty(key))
+                                    .or(() -> Optional.ofNullable(System.getenv(PROPERTY_ENV.apply(key))))
+                                    .filter(Predicate.not(String::isBlank))
+                                    .map(decode)
+                               );
             value = v.orElse(null);
             key = null;
             config = null;

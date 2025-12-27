@@ -4,18 +4,22 @@ import io.vertx.core.buffer.Buffer;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.experimental.Accessors;
+import org.jspecify.annotations.Nullable;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Iterator;
 import java.util.Optional;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.stream.Stream;
 
 ///  manul proto buf encoder and decoder
 ///
 /// @author Zen.Liu
 /// @since 2025-12-25
 
+@SuppressWarnings("unused")
 public interface Proto {
     Buffer buffer();
 
@@ -24,10 +28,12 @@ public interface Proto {
         final int val;
 
         WireType(int val) {this.val = val;}
+
         public static WireType from(int val) {
             for (WireType t : values()) if (t.val == val) return t;
-           throw new IllegalStateException("unknown wireType "+val);
+            throw new IllegalStateException("unknown wireType " + val);
         }
+
         public static WireType fromItem(Object item) {
             if (item instanceof Integer || item instanceof Long || item instanceof Boolean) return VAR_INT;
             if (item instanceof Float) return I32;
@@ -128,6 +134,7 @@ public interface Proto {
         }
         return this;
     }
+
     default <T> Proto packed(int field, Iterable<T> items, BiConsumer<Proto, T> encoder) {
         return message(field, p -> {
             for (T item : items) {
@@ -135,12 +142,14 @@ public interface Proto {
             }
         });
     }
-    default <T> Proto optional(T value, BiConsumer<Proto, T> encoder) {
+
+    default <T> Proto optional(@Nullable T value, BiConsumer<Proto, T> encoder) {
         if (value != null) {
             encoder.accept(this, value);
         }
         return this;
     }
+
     default Proto message(int field, Consumer<Proto> builder) {
         Proto nested = Proto.of();
         builder.accept(nested);
@@ -159,17 +168,21 @@ public interface Proto {
     static Proto of(Buffer buffer) {
         return new proto(buffer);
     }
+
     record Tag(int fieldId, WireType wireType) {}
+
     interface Reader extends Proto {
         int pos();
 
         void pos(int newPos);
+
         default boolean ended() {
             return pos() >= buffer().length();
         }
+
         default long varInt() {
             long value = 0; int shift = 0;
-            while (shift < 64&&!ended()) {
+            while (shift < 64 && !ended()) {
                 byte b = buffer().getByte(pos());
                 pos(pos() + 1);
                 value |= (long) (b & 0x7F) << shift;
@@ -179,7 +192,7 @@ public interface Proto {
             throw new IllegalStateException("Malformed VarInt");
         }
 
-        default Tag tag() {
+        default @Nullable Tag tag() {
             if (ended()) return null;
             long tag = varInt();
             return new Tag((int) (tag >>> 3), WireType.from((int) (tag & 0x07)));
@@ -230,7 +243,7 @@ public interface Proto {
 
         default String string() {
             var len = (int) varInt();
-            var s = buffer().getString(pos(), pos() + len,"UTF-8");
+            var s = buffer().getString(pos(), pos() + len, "UTF-8");
             pos(pos() + len);
             return s;
         }
@@ -241,7 +254,7 @@ public interface Proto {
                 case I64 -> pos(pos() + 8);
                 case LEN -> pos(pos() + (int) varInt());
                 case I32 -> pos(pos() + 4);
-                default ->throw new RuntimeException("Unsupported wire type: " + type);
+                default -> throw new RuntimeException("Unsupported wire type: " + type);
             }
             if (pos() > buffer().length()) throw new IllegalStateException("Skipped past buffer end");
         }
@@ -262,16 +275,19 @@ public interface Proto {
                 itemReader.accept(this);
             }
         }
-        interface Handler{
-           void accept(int field,WireType type,Reader reader);
+
+        interface Handler {
+            void accept(int field, WireType type, Reader reader);
         }
-        default void parse(Handler hd){
+
+        default void parse(Handler hd) {
             while (!ended()) {
                 Tag tag = tag();
                 if (tag == null) break;
-                hd.accept(tag.fieldId(), tag.wireType(),this);
+                hd.accept(tag.fieldId(), tag.wireType(), this);
             }
         }
+
         default <T> T map(java.util.function.Supplier<T> factory, BiConsumer<T, Reader> fieldMapper) {
             T instance = factory.get();
             while (!ended()) {
@@ -279,7 +295,8 @@ public interface Proto {
             }
             return instance;
         }
-        default <T> Optional<T> find(int targetFieldId, Function<Reader, T> extractor) {
+
+        default <T> Optional<T> find(int targetFieldId, Function<Reader, @Nullable T> extractor) {
             while (!ended()) {
                 Tag tag = tag();
                 if (tag == null) break;
@@ -290,15 +307,24 @@ public interface Proto {
             }
             return Optional.empty();
         }
+
         record Field(int id, WireType type, Reader reader) {
-            public int asInt() { return reader.int32(); }
-            public String asString() { return reader.string(); }
+            public int asInt() {return reader.int32();}
+
+            public String asString() {return reader.string();}
         }
-        default java.util.stream.Stream<Field> stream() {
-            Iterable<Field> iterable = () -> new java.util.Iterator<>() {
+
+        default Stream<Field> stream() {
+            Iterable<Field> iterable = () -> new Iterator<>() {
+                @Nullable
                 Tag nextTag = tag();
-                @Override public boolean hasNext() { return nextTag != null; }
-                @Override public Field next() {
+
+                @Override
+                public boolean hasNext() {return nextTag != null;}
+
+                @Override
+                public Field next() {
+                    assert nextTag != null;
                     Field f = new Field(nextTag.fieldId(), nextTag.wireType(), Reader.this);
                     nextTag = tag();
                     return f;
@@ -306,16 +332,19 @@ public interface Proto {
             };
             return java.util.stream.StreamSupport.stream(iterable.spliterator(), false);
         }
+
         default void fields(BiConsumer<Tag, Reader> action) {
             while (!ended()) {
                 Tag tag = tag();
                 int startPos = pos();
+                assert tag != null;
                 action.accept(tag, this);
                 if (pos() == startPos) {
                     skipField(tag.wireType());
                 }
             }
         }
+
         @EqualsAndHashCode(onlyExplicitlyIncluded = true)
         @Getter
         @Accessors(fluent = true)

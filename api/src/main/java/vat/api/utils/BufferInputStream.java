@@ -10,6 +10,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.concurrent.atomic.AtomicInteger;
 
+@SuppressWarnings("unused")
 @EqualsAndHashCode(callSuper = true)
 public class BufferInputStream extends InputStream {
     public final Buffer buf;
@@ -18,6 +19,7 @@ public class BufferInputStream extends InputStream {
     public BufferInputStream(Buffer buf) {
         this.buf = buf;
     }
+
 
     public BufferInputStream() {
         this.buf = Buffer.buffer();
@@ -120,7 +122,6 @@ public class BufferInputStream extends InputStream {
             p += (int) n;
             position.set(p);
         } else {
-            p = buf.length();
             throw new EOFException();
         }
     }
@@ -137,6 +138,6 @@ public class BufferInputStream extends InputStream {
 
     @SneakyThrows
     protected void checkClosed() {
-        if (position.get()== - 2) throw new IllegalStateException("already closed");
+        if (position.get() == -2) throw new IllegalStateException("already closed");
     }
 }

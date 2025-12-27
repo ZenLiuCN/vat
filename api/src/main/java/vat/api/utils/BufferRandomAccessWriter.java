@@ -4,7 +4,7 @@ package vat.api.utils;
 import io.vertx.core.buffer.Buffer;
 
 import java.util.concurrent.atomic.AtomicInteger;
-
+@SuppressWarnings("unused")
 public record BufferRandomAccessWriter(
         Buffer buf,
         AtomicInteger pos

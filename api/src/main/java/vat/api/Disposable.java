@@ -1,6 +1,8 @@
 package vat.api;
 
 import io.vertx.core.Future;
+import org.jspecify.annotations.Nullable;
+
 
 /**
  * @author Zen.Liu
@@ -8,5 +10,5 @@ import io.vertx.core.Future;
  */
 @Prototype
 public interface Disposable {
-    Future<Void> dispose();
+    Future<@Nullable Void> dispose();
 }

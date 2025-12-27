@@ -5,9 +5,10 @@ import io.vertx.core.Vertx;
 import io.vertx.core.json.JsonObject;
 import lombok.SneakyThrows;
 import org.intellij.lang.annotations.MagicConstant;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import vat.api.meta.Nullable;
 
 import javax.crypto.Cipher;
 import javax.crypto.Mac;
@@ -34,6 +35,8 @@ import java.util.stream.Stream;
 /// @author Zen.Liu
 /// @since 2025-11-12
 
+@SuppressWarnings("unused")
+@NullMarked
 public interface Algorithm {
     Logger log = LoggerFactory.getLogger(Algorithm.class);
 
@@ -81,17 +84,17 @@ public interface Algorithm {
     interface Nonce {
         static CharSequence alphabet(int size) {
             return RNG.ints('a', 'z' + 1)
-                    .limit(size)
-                    .collect(StringBuilder::new, StringBuilder::appendCodePoint, StringBuilder::append)
-                    .toString();
+                      .limit(size)
+                      .collect(StringBuilder::new, StringBuilder::appendCodePoint, StringBuilder::append)
+                      .toString();
         }
 
         static CharSequence alphabetNumeric(int size) {
             return RNG.ints('0', 'z' + 1)
-                    .filter(i -> (i <= 57 || i >= 65) && (i <= 90 || i >= 97))
-                    .limit(size)
-                    .collect(StringBuilder::new, StringBuilder::appendCodePoint, StringBuilder::append)
-                    .toString();
+                      .filter(i -> (i <= 57 || i >= 65) && (i <= 90 || i >= 97))
+                      .limit(size)
+                      .collect(StringBuilder::new, StringBuilder::appendCodePoint, StringBuilder::append)
+                      .toString();
         }
     }
 
@@ -217,18 +220,18 @@ public interface Algorithm {
         var be = new boolean[]{false};
         var i = new AtomicInteger();
         Stream.of(pem.replaceAll("\\s+", "").split("-----"))
-                .map(x -> new Indexed<>(i, x))
-                .map(v -> v.mapIndex($ -> v.value().startsWith("BEGIN") ? 1 : v.value().startsWith("END") ? 2 : 0))
-                .forEach(u -> {
-                    if (be[0]) {
-                        if (u.index() == 1) throw new IllegalStateException("not matched pem");
-                        else if (u.index() == 0) sets.add(u.value());
-                        else if (u.index() == 2) be[0] = false;
-                    } else {
-                        if (u.index() == 1) be[0] = true;
-                        else if (u.index() == 2) throw new IllegalStateException("not matched pem");
-                    }
-                });
+              .map(x -> new Indexed<>(i, x))
+              .map(v -> v.mapIndex($ -> v.value().startsWith("BEGIN") ? 1 : v.value().startsWith("END") ? 2 : 0))
+              .forEach(u -> {
+                  if (be[0]) {
+                      if (u.index() == 1) throw new IllegalStateException("not matched pem");
+                      else if (u.index() == 0) sets.add(u.value());
+                      else if (u.index() == 2) be[0] = false;
+                  } else {
+                      if (u.index() == 1) be[0] = true;
+                      else if (u.index() == 2) throw new IllegalStateException("not matched pem");
+                  }
+              });
         if (log.isDebugEnabled()) log.info("segments in pem: {}", sets);
         return sets.stream();
     }
@@ -240,7 +243,8 @@ public interface Algorithm {
         });
     }
 
-    static Future<List<PrivateKey>> readPrivateKeysFromPem(String pem, BiFunction<KeyFactory, String, PrivateKey> reader) {
+    static Future<List<PrivateKey>> readPrivateKeysFromPem(String pem,
+                                                           BiFunction<KeyFactory, String, PrivateKey> reader) {
         return Future.future(p -> {
             var f = rsaKeyFactory();
             p.complete(segmentsInPem(pem).map(v -> reader.apply(f, v)).toList());
@@ -286,11 +290,13 @@ public interface Algorithm {
         return vertx.executeBlocking(() -> doSign(privateKey, data));
     }
 
-    static Future<byte[]> encodeGCM(Vertx vertx, PrivateKey privateKey, byte[] data, byte[] nonce, byte @Nullable [] salt) {
+    static Future<byte[]> encodeGCM(Vertx vertx, PrivateKey privateKey, byte[] data, byte[] nonce,
+                                    byte @Nullable [] salt) {
         return vertx.executeBlocking(() -> doGCMEncrypt(privateKey, data, nonce, salt));
     }
 
-    static Future<byte[]> decodeGCM(Vertx vertx, Certificate certificate, byte[] data, byte[] nonce, byte @Nullable [] salt) {
+    static Future<byte[]> decodeGCM(Vertx vertx, Certificate certificate, byte[] data, byte[] nonce,
+                                    byte @Nullable [] salt) {
         return vertx.executeBlocking(() -> doGCMDecrypt(certificate, data, nonce, salt));
     }
 
@@ -340,6 +346,7 @@ public interface Algorithm {
         return vertx.executeBlocking(() -> doVerify(publicKey, data, signature));
     }
 
+    @SuppressWarnings("SameParameterValue")
     private static String translateECCrv(String crv, boolean toJdk) {
         return toJdk ?
                 switch (crv) {
@@ -412,7 +419,8 @@ public interface Algorithm {
     }
 
     @SneakyThrows
-    static JsonObject encJwkEC(@MagicConstant(valuesFromClass = Algorithm.class) String curve, Map.Entry<PrivateKey, PublicKey> pair) {
+    static JsonObject encJwkEC(@MagicConstant(valuesFromClass = Algorithm.class) String curve,
+                               Map.Entry<PrivateKey, PublicKey> pair) {
         var priKey = (ECPrivateKey) pair.getKey();
         var pubKey = (ECPublicKey) pair.getValue();
         var d = encodeCoordinate(priKey.getParams().getCurve().getField().getFieldSize(), priKey.getS());
@@ -424,12 +432,12 @@ public interface Algorithm {
                 "x", x,
                 "y", y,
                 "d", d
-        );
+                            );
     }
 
     @SneakyThrows
-    static Map.Entry<PrivateKey, PublicKey> parseECJwk(JsonObject jwk) {
-        if (jwk == null || jwk.isEmpty()) throw new IllegalArgumentException("not valid jwk");
+    static Map.Entry<@Nullable PrivateKey, @Nullable PublicKey> parseECJwk(JsonObject jwk) {
+        if (jwk.isEmpty()) throw new IllegalArgumentException("not valid jwk");
         if (!"EC".equals(jwk.getString("kty"))) throw new IllegalArgumentException("not valid EC jwk");
         var parameters = AlgorithmParameters.getInstance("EC");
         parameters.init(new ECGenParameterSpec(translateECCrv(jwk.getString("crv"), true)));
@@ -439,13 +447,15 @@ public interface Algorithm {
         if (jwk.containsKey("x") && jwk.containsKey("y")) {
             var x = new BigInteger(1, dec.decode(jwk.getString("x")));
             var y = new BigInteger(1, dec.decode(jwk.getString("y")));
-            publicKey = KeyFactory.getInstance("EC").generatePublic(new ECPublicKeySpec(new ECPoint(x, y), parameters.getParameterSpec(ECParameterSpec.class)));
+            publicKey = KeyFactory.getInstance("EC").generatePublic(
+                    new ECPublicKeySpec(new ECPoint(x, y), parameters.getParameterSpec(ECParameterSpec.class)));
         }
         if (jwk.containsKey("d")) {
             var d = new BigInteger(1, dec.decode(jwk.getString("x")));
-            privateKey = KeyFactory.getInstance("EC").generatePrivate(new ECPrivateKeySpec(d, parameters.getParameterSpec(ECParameterSpec.class)));
+            privateKey = KeyFactory.getInstance("EC").generatePrivate(
+                    new ECPrivateKeySpec(d, parameters.getParameterSpec(ECParameterSpec.class)));
         }
-        return new AbstractMap.SimpleEntry<>(privateKey, publicKey);
+        return new AbstractMap.SimpleImmutableEntry<>(privateKey, publicKey);
     }
 
 }

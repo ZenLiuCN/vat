@@ -5,8 +5,9 @@ import lombok.SneakyThrows;
 import org.jooq.lambda.Seq;
 import org.jooq.lambda.function.Function2;
 import org.jooq.lambda.tuple.*;
+import org.jspecify.annotations.Nullable;
 import vat.api.DomainError;
-import vat.api.meta.Nullable;
+
 
 import java.lang.reflect.Array;
 import java.util.*;
@@ -20,18 +21,18 @@ import java.util.stream.Stream;
 ///
 /// @author Zen.Liu
 /// @since 2025-10-26
-
+@SuppressWarnings("unused")
 public interface Fn {
     static <T> T fail(RuntimeException err) {
         throw err;
     }
 
-    static <T> T noneNull(T v, Supplier<DomainError> err) {
+    static <T> T noneNull(@Nullable T v, Supplier<DomainError> err) {
         if (v == null) throw err.get();
         return v;
     }
 
-    static <S, T> T parseNullable(S value, Function<S, T> o) {
+    static <S, T> @Nullable T parseNullable(@Nullable S value, Function<S, T> o) {
         return value == null ? null : o.apply(value);
     }
 
@@ -41,7 +42,7 @@ public interface Fn {
     }
 
     @SneakyThrows
-    static <T> T asserts(T v, Predicate<T> check, Function<T, Exception> ex) {
+    static <T> @Nullable T asserts(@Nullable T v, Predicate<@Nullable T> check, @Nullable Function<@Nullable T, Exception> ex) {
         if (check.test(v)) return v;
         throw ex == null ? DomainError.System.badRequest("value invalid") : ex.apply(v);
     }
@@ -51,12 +52,12 @@ public interface Fn {
         return asserts(v, check, null);
     }
 
-    static Boolean isTrue(Boolean value) {
+    static Boolean isTrue(@Nullable Boolean value) {
         if (value == null || !value) throw DomainError.System.notAcceptable("not acceptable");
         return true;
     }
 
-    static <T> T apply(T t, Consumer<T> o) {
+    static <T> @Nullable T apply(@Nullable T t, Consumer<T> o) {
         if (t == null) return null;
         o.accept(t);
         return t;
@@ -66,7 +67,7 @@ public interface Fn {
         return v != null && !v.isBlank();
     }
 
-    static String nonBlank(String s) {
+    static String nonBlank(@Nullable String s) {
         if (!notBlank(s)) throw new IllegalStateException("value require not blank");
         return s;
     }
@@ -113,7 +114,7 @@ public interface Fn {
     }
 
     /// convert to null if not match predicate
-    static <T> Function<T, T> empty(Predicate<T> o) {
+    static <T> Function<T, @Nullable T> empty(Predicate<T> o) {
         return t -> {
             if (!o.test(t)) return null;
             return t;
@@ -214,33 +215,33 @@ public interface Fn {
         return (i, t) -> mapper.apply(i, cast.apply(t));
     }
 
-    static <T, R> Function<T, R> nonNull(Function<T, R> mapper) {
+    static <T, R> Function<@Nullable T, R> nonNull(Function<T, @Nullable R> mapper) {
         return t -> {
             if (t == null) throw new IllegalArgumentException("argument required none null");
-            var v = mapper.apply(t);
+            R v = mapper.apply(t);
             if (v == null) throw DomainError.System.badRequest("corrupted data, should exists");
             return v;
         };
     }
 
-    static <T0, T, R> BiFunction<T0, T, R> nonNull(BiFunction<T0, T, R> mapper) {
+    static <T0, T, R> BiFunction<@Nullable T0, @Nullable T, R> nonNull(BiFunction<T0, T, @Nullable R> mapper) {
         return (t0, t) -> {
             if (t0 == null || t == null) throw new IllegalArgumentException("argument required none null");
-            var v = mapper.apply(t0, t);
+            R v = mapper.apply(t0, t);
             if (v == null) throw DomainError.System.badRequest("corrupted data, should exists");
             return v;
         };
     }
 
-    static <T, R> Function<T, R> nullable(Function<T, R> mapper) {
+    static <T, R> Function<@Nullable T, @Nullable R> nullable(Function<T, R> mapper) {
         return t -> t == null ? null : mapper.apply(t);
     }
 
-    static <T0, T, R> BiFunction<T0, T, R> nullable(BiFunction<T0, T, R> mapper) {
+    static <T0, T, R> BiFunction<@Nullable T0, @Nullable T, @Nullable R> nullable(BiFunction<T0, T, @Nullable R> mapper) {
         return (t0, t) -> t0 == null || t == null ? null : mapper.apply(t0, t);
     }
 
-    static <T> Function<T, T> equal(T val) {
+    static <T> Function<@Nullable T, @Nullable T> equal(@Nullable T val) {
         return t -> {
             if (!Objects.equals(t, val)) throw DomainError.System.notAcceptable("not acceptable");
             return t;
@@ -254,7 +255,7 @@ public interface Fn {
         };
     }
 
-    static <T> Function<T, T> lengthEqual(int val, ToIntFunction<T> len, IntFunction<DomainError> error) {
+    static <T> Function<T, T> lengthEqual(int val, ToIntFunction<T> len,@Nullable IntFunction<DomainError> error) {
         return t -> {
             if (len.applyAsInt(t) != val)
                 throw error == null ? DomainError.System.notAcceptable("not acceptable") : error.apply(len.applyAsInt(t));
@@ -280,7 +281,7 @@ public interface Fn {
     }
 
 
-    static Function<Boolean, Void> trueValue(Supplier<DomainError> err) {
+    static Function<@Nullable Boolean, @Nullable Void> trueValue(Supplier<DomainError> err) {
         return v -> {
             if (v == null || !v) throw err.get();
             return null;
@@ -289,6 +290,7 @@ public interface Fn {
 
 
     //endregion
+
     record Pair<A, B>(A a, B b) {
         public static <A, B> Function<Pair<A, B>, A> predicate1(BiPredicate<? super A, ? super B> act, Supplier<DomainError> err) {
             return p -> {
@@ -453,7 +455,7 @@ public interface Fn {
             return retry(vertx, wait, action, null, times, 0);
         }
 
-        private static <T> Future<T> retry(Vertx vertx, long wait, Supplier<Future<T>> action, Predicate<Throwable> cond, int maxTimes, int attemptCount) {
+        private static <T> Future<T> retry(@Nullable Vertx vertx, long wait, Supplier<Future<T>> action, @Nullable Predicate<Throwable> cond, int maxTimes, int attemptCount) {
             return action.get().recover(err -> {
                 if (
                         err instanceof TimeoutException ||
@@ -484,7 +486,7 @@ public interface Fn {
         ///
         static <T> Future<T> iterate(
                 BiPredicate<@Nullable T, @Nullable Throwable> continues,
-                Supplier<Future<T>> iterSupplier
+                Supplier<@Nullable Future<T>> iterSupplier
         ) {
             Future<T> nextFuture = iterSupplier.get();
             if (nextFuture == null) {
@@ -524,7 +526,7 @@ public interface Fn {
 
     interface Maybe {
         /// return value if can cast otherwise empty
-        static <T, R> Function<Optional<T>, Optional<R>> cast(Class<R> type) {
+        static <T, R> Function<Optional<@Nullable T>, Optional<@Nullable R>> cast(Class<R> type) {
             return t -> t.filter(type::isInstance).map(type::cast);
         }
 
@@ -533,90 +535,84 @@ public interface Fn {
         }
 
         @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
-        static <T> Optional<T> notEmpty(Optional<T> v) {
+        static <T> Optional<@Nullable T> isEmpty(Optional<@Nullable T> v) {
             if (v.isPresent()) throw DomainError.System.conflict("alreadyExists");
             return v;
         }
 
         @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
-        static <T> T orElseNull(Optional<T> v) {
+        static <T> @Nullable T orElseNull(Optional<@Nullable T> v) {
             return v.orElse(null);
         }
 
 
         @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
-        static boolean orElseFalse(Optional<Boolean> v) {
+        static boolean orElseFalse(Optional<@Nullable Boolean> v) {
             return v.orElse(false);
         }
 
         @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
-        static boolean orElseTrue(Optional<Boolean> v) {
+        static boolean orElseTrue(Optional<@Nullable Boolean> v) {
             return v.orElse(true);
         }
 
-        static <T> UnaryOperator<Optional<T>> notEmpty(Supplier<DomainError> err) {
+        static <T> UnaryOperator<Optional<@Nullable T>> notEmpty(Supplier<DomainError> err) {
             return v -> {
                 if (v.isPresent()) throw err.get();
                 return v;
             };
         }
 
-        static <T, R> Function<Optional<T>, Optional<R>> ifPresent(Function<T, R> act) {
+        static <T, R> Function<Optional<@Nullable T>, Optional<@Nullable R>> ifPresent(Function<T, R> act) {
             return v -> v.map(act);
         }
 
-        static <T, R> Function<Optional<T>, Optional<R>> ifPresent(Function<T, R> act, Supplier<Optional<R>> orElse) {
+        static <T, R> Function<Optional<@Nullable T>, Optional<@Nullable R>> ifPresent(Function<T, R> act, Supplier<Optional<@Nullable R>> orElse) {
             return v -> v.map(act).or(orElse);
         }
-        static <T> UnaryOperator<Optional<T>> ifPresent(Consumer<? super T> act, Runnable orElse) {
+        static <T> UnaryOperator<Optional<@Nullable T>> ifPresent(Consumer<? super T> act, Runnable orElse) {
             return v -> {
                 if(v.isPresent()) act.accept(v.get());
                 else orElse.run();
                 return v;
             };
         }
-        static <T> Function<Optional<T>, T> orElseThrow(Supplier<DomainError> err) {
+        static <T> Function<Optional<@Nullable T>, T> orElseThrow(Supplier<DomainError> err) {
             return v -> {
                 if (v.isEmpty()) throw err.get();
                 return v.get();
             };
         }
 
-        static <T> Function<Optional<T>, T> orElse(T v) {
+        static <T> Function<Optional<@Nullable T>, T> orElse(T v) {
             return x -> x.orElse(v);
         }
 
-        static <T> Function<Optional<T>, T> orElse(Supplier<T> v) {
+        static <T> Function<Optional<@Nullable T>, T> orElse(Supplier<T> v) {
             return x -> x.orElseGet(v);
         }
 
         interface Flat {
-            static <I, O> Function<I, Future<Optional<O>>> optional(Function<I, Future<O>> act) {
+            static <I, O> Function<@Nullable I, Future<Optional<@Nullable O>>> optional(Function<@Nullable I, Future<@Nullable O>> act) {
                 return i -> act.apply(i).map(Optional::ofNullable);
             }
 
-            static <T, R> Function<Optional<T>, Future<Optional<R>>> isPresent(Function<T, Future<Optional<R>>> act) {
-                return t -> {
-                    if (t.isPresent()) return act.apply(t.get());
-                    return Future.succeededFuture(Optional.empty());
-                };
+            static <T, R> Function<Optional<@Nullable T>, Future<Optional<@Nullable R>>> isPresent(Function<T, Future<Optional<@Nullable R>>> act) {
+                return t -> t.map(act).orElseGet(() -> Future.succeededFuture(Optional.empty()));
             }
 
-            static <T> Function<Optional<T>, Future<Optional<T>>> isAbsent(Supplier<Future<Optional<T>>> act) {
+            static <T> Function<Optional<@Nullable T>, Future<Optional<@Nullable T>>> isAbsent(Supplier<Future<Optional<@Nullable T>>> act) {
                 return t -> {
                     if (t.isPresent()) return Future.succeededFuture(t);
                     return act.get();
                 };
             }
 
-            static <T> Function<Optional<T>, Future<Optional<T>>> convert(
-                    Function<T, Future<Optional<T>>> present,
-                    Supplier<Future<Optional<T>>> absent
+            static <T> Function<Optional<@Nullable T>, Future<Optional<@Nullable T>>> convert(
+                    Function<T, Future<Optional<@Nullable T>>> present,
+                    Supplier<Future<Optional<@Nullable T>>> absent
             ) {
-                return t -> {
-                    if (t.isPresent()) return present.apply(t.get());
-                    return absent.get();
-                };
+                return t -> t.map(present).orElseGet(absent);
             }
         }
     }
@@ -636,19 +632,19 @@ public interface Fn {
             return copy;
         }
 
-        static <T> T onlyFirst(Collection<? extends T> v) {
+        static <T> T onlyFirst(@Nullable Collection<? extends T> v) {
             if (v != null && v.size() == 1) return v.iterator().next();
             throw DomainError.System.conflict("duplicate or missing value");
         }
 
-        static <K, V, M extends Map<?extends K, ?extends V>,R> Function<? extends M, List<List<R>>> nullSafeMapMapping(Function<? super K, ? extends R> km, Function< ? super V,  ? extends R> vm) {
+        static <K, V, M extends Map<?extends K, ?extends V>,R> Function<? extends @Nullable M, @Nullable List<List<R>>> nullSafeMapMapping(Function<? super K, ? extends R> km, Function< ? super V,  ? extends R> vm) {
             return t -> t == null ? null : t.entrySet()
                     .stream()
                     .map(e -> List.of(km.apply(e.getKey()), vm.apply(e.getValue())))
                     .toList();
         }
 
-        static <V, M extends Collection<V>,R> Function<? super M, List<? extends R>> nullSafeCollectionMapping(Function<? super V, ? extends R> vm) {
+        static <V, M extends Collection<V>,R> Function<? super @Nullable M, @Nullable List<? extends R>> nullSafeCollectionMapping(Function<? super V, ? extends R> vm) {
             return t -> t == null ? null : t.stream().map(vm).toList();
         }
 
@@ -686,9 +682,10 @@ public interface Fn {
                 return all(ks.stream().map(one).toList());
             }
 
-            static <T> Function<List<? extends T>, Future<List<? extends T>>> filter(Function<? super T, Future<Boolean>> a) {
+            @SuppressWarnings("NullableProblems")
+            static <T> Function<List<? extends @Nullable T>, Future<List<? extends T>>> filter(Function<? super @Nullable T, Future<Boolean>> a) {
                 return v -> Future.join(v.stream().map(x -> a.apply(x).map(s -> s ? x : null)).toList())
-                        .map(x -> x.<T>list().stream().filter(Objects::nonNull).toList());
+                        .map(x -> x.<@Nullable T>list().stream().filter(Objects::nonNull).toList());
             }
 
             /// invoke future in sequence
@@ -724,14 +721,14 @@ public interface Fn {
             /**
              * auto filtered for null value
              */
-            static <T> Future<List<? extends T>> all(List<? extends Future<? extends T>> futures) {
+            static <T> Future<List<? extends @Nullable T>> all(List<? extends @Nullable Future<? extends @Nullable T>> futures) {
                 return Future.all(futures.stream().filter(Objects::nonNull).toList()).map(CompositeFuture::list);
             }
 
             /**
              * auto filtered for null value
              */
-            static <T> Future<List<? extends T>> allFlatten(List<? extends Future<? extends List<? extends T>>> futures) {
+            static <T> Future<List<? extends @Nullable T>> allFlatten(List<? extends @Nullable Future<? extends @Nullable List<? extends @Nullable T>>> futures) {
                 return Future.all(futures.stream().filter(Objects::nonNull).toList())
                         .map(CompositeFuture::<List<T>>list)
                         .map(v -> v.stream().flatMap(Collection::stream).toList());
@@ -740,7 +737,7 @@ public interface Fn {
             /**
              * auto filtered for null value
              */
-            static <T> Future<List<? extends T>> joinFlatten(List<? extends Future<List<? extends T>>> list) {
+            static <T> Future<List<? extends @Nullable T>> joinFlatten(List<? extends @Nullable Future<@Nullable List<? extends @Nullable T>>> list) {
                 return Future.join(list.stream().filter(Objects::nonNull).toList())
                         .map(CompositeFuture::<List<T>>list)
                         .map(s -> s.stream().flatMap(Collection::stream).toList());
@@ -749,11 +746,11 @@ public interface Fn {
             /**
              * Auto filtered for null value
              */
-            static <T> Future<List<? extends T>> join(List<? extends Future<? extends T>> list) {
+            static <T> Future<List<? extends @Nullable T>> join(List<? extends @Nullable Future<? extends @Nullable T>> list) {
                 return Future.join(list.stream().filter(Objects::nonNull).toList()).map(CompositeFuture::list);
             }
 
-            static <T> Future<List<Result<T>>> joinResultFlatten(List<? extends Future<List<? extends T>>> list) {
+            static <T> Future<List<Result<@Nullable T>>> joinResultFlatten(List<? extends @Nullable  Future< @Nullable List<? extends @Nullable  T>>> list) {
                 return Future.join(list.stream().filter(Objects::nonNull).toList())
                         .transform(r -> {
                             var x = r.result();
@@ -770,7 +767,7 @@ public interface Fn {
                         });
             }
 
-            static <T> Future<List<Result<T>>> joinResult(List<? extends Future<? extends T>> list) {
+            static <T> Future<List<Result<@Nullable T>>> joinResult(List<? extends @Nullable Future<? extends @Nullable T>> list) {
                 return Future.join(list.stream().filter(Objects::nonNull).toList())
                         .transform(r -> {
                             var x = r.result();
@@ -1519,7 +1516,7 @@ public interface Fn {
         }
     }
 
-    sealed interface Result<T> {
+    sealed interface Result<T extends @Nullable Object> {
         T value();
 
         record failure<T>(Throwable error) implements Result<T> {

@@ -14,6 +14,7 @@ import java.nio.file.Path;
 /// @since 2025-11-27
 
 
+@SuppressWarnings("unused")
 public interface HOCON {
     String MIME_TYPE = "application/hocon";
 

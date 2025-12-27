@@ -1,6 +1,7 @@
 package vat.api.trait;
 
 import io.vertx.core.json.JsonObject;
+import org.jspecify.annotations.Nullable;
 import vat.api.meta.Describe;
 
 ///
@@ -10,5 +11,6 @@ import vat.api.meta.Describe;
 
 public interface Profile {
     @Describe("profile")
+    @Nullable
     JsonObject profile();
 }

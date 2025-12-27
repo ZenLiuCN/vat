@@ -1,10 +1,11 @@
 package vat.api.trait;
 
 import io.vertx.core.json.JsonObject;
+import org.jspecify.annotations.Nullable;
 import vat.api.Data;
 import vat.api.meta.Describe;
 import vat.api.meta.Historic;
-import vat.api.meta.Nullable;
+
 
 /// Entity with history recording
 ///
@@ -14,5 +15,6 @@ import vat.api.meta.Nullable;
 public interface History extends Data {
     @Describe(value = "_HISTORY",desc = "_DESC_HISTORY")
     @Historic
-    @Nullable JsonObject history();
+    @Nullable
+    JsonObject history();
 }

@@ -1,6 +1,7 @@
 package vat.api;
 
 import io.vertx.core.json.JsonObject;
+import org.jspecify.annotations.Nullable;
 import vat.api.meta.*;
 import vat.api.trait.Applicative;
 import vat.api.utils.Buf;
@@ -15,11 +16,13 @@ import java.time.Instant;
  * @since 2025-10-20
  */
 @Prototype
+@SuppressWarnings("unused")
 public interface Entity extends Data {
 
     interface Base extends Entity, Entry {
         @Describe(value = "_IDENTITY", desc = "_DESC_IDENTITY")
         @Identity
+        @Nullable
         Long id();
 
         /// opt-lock field
@@ -33,16 +36,19 @@ public interface Entity extends Data {
         boolean removed();
 
         /// store creator, 0 if missing
-        @Describe(value = "_CREATOR", desc = "_DESC_CREATOR", identity = "vat.foundation.users.api.Users::identity")
+        @Describe(value = "_CREATOR", desc = "_DESC_CREATOR")
+        @Identity.Refer("vat.foundation.users.api.Users::identity")
         @Audit.Creator
         long creator();
+
 
         @Describe(value = "_CREATED_AT", desc = "_DESC_CREATED_AT")
         @Audit.Created
         Instant createdAt();
 
         /// store last modifier, 0 if missing
-        @Describe(value = "_MODIFIER", desc = "_DESC_MODIFIER", identity = "vat.foundation.users.api.Users::identity")
+        @Describe(value = "_MODIFIER", desc = "_DESC_MODIFIER")
+        @Identity.Refer("vat.foundation.users.api.Users::identity")
         @Audit.Modifier
         long modifier();
 
@@ -53,11 +59,11 @@ public interface Entity extends Data {
 
 
     interface Entry extends Data {
-        static Entry of(Long id, int version) {
+        static Entry of(@Nullable Long id, int version) {
             return new Entry.entry(id, version);
         }
 
-        record entry(Long id, int version) implements Entry, Data.Binary, Applicative<entry> {
+        record entry(@Nullable Long id, int version) implements Entry, Data.Binary, Applicative<entry> {
             public entry(JsonObject v) {
                 this(v.getLong("id"), v.getInteger("version"));
             }
@@ -75,7 +81,7 @@ public interface Entity extends Data {
                 return JsonObject.of(
                         "id", id,
                         "version", version
-                );
+                                    );
             }
 
             @Override
@@ -94,7 +100,7 @@ public interface Entity extends Data {
             }
         }
 
-        Long id();
+        @Nullable Long id();
 
         /// opt-lock field
         int version();

@@ -2,6 +2,7 @@ package vat.api.trait;
 
 
 import io.vertx.core.Future;
+import org.jspecify.annotations.Nullable;
 import vat.api.Data;
 
 import java.util.function.Consumer;
@@ -26,7 +27,7 @@ public interface Applicative<T extends Applicative<T>> extends Data.Accessor<T> 
         return _this();
     }
 
-    default <R> R apply(Function<T, R> mapper) {
+    default <R> R apply(Function<T, @Nullable R> mapper) {
         return mapper.apply(_this());
     }
 

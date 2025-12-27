@@ -8,7 +8,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 /// @author Zen.Liu
 /// @since 2025-11-17
 
-
+@SuppressWarnings("unused")
 public record BufferRandomAccessReader(
         Buffer buf,
         AtomicInteger pos

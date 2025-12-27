@@ -5,7 +5,7 @@ import lombok.EqualsAndHashCode;
 
 import java.io.IOException;
 import java.io.OutputStream;
-
+@SuppressWarnings("unused")
 @EqualsAndHashCode(callSuper = true)
 public class BufferOutputStream extends OutputStream {
     public final Buffer buf;

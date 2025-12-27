@@ -12,6 +12,7 @@ import java.util.function.ToLongFunction;
 /// @since 2025-11-10
 
 
+@SuppressWarnings("unused")
 public interface Primitives {
     interface ToShortFunction<T> extends Function<T, Short> {
         short applyAsShort(T v);

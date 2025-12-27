@@ -3,8 +3,8 @@ package vat.api.utils;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import io.vertx.core.Vertx;
 import io.vertx.core.json.JsonObject;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import vat.api.Data;
@@ -44,7 +44,7 @@ public interface Executors {
             Vertx vertx
     ) implements Executor {
         @Override
-        public void execute(@NotNull Runnable runnable) {
+        public void execute( Runnable runnable) {
             vertx.runOnContext(v -> runnable.run());
         }
     }
@@ -53,7 +53,7 @@ public interface Executors {
             Vertx vertx
     ) implements Executor {
         @Override
-        public void execute(@NotNull Runnable runnable) {
+        public void execute(Runnable runnable) {
             if (vertx.getOrCreateContext().isWorkerContext()) {
                 vertx.runOnContext($ -> runnable.run());
             } else {
@@ -144,7 +144,7 @@ public interface Executors {
                     final AtomicInteger count = new AtomicInteger();
 
                     @Override
-                    public Thread newThread(@NotNull Runnable r) {
+                    public Thread newThread(Runnable r) {
                         var t = new Thread(null, r, name + "_" + count.incrementAndGet());
                         try {
                             if (t.isDaemon() != daemon) t.setDaemon(daemon);

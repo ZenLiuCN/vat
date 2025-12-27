@@ -77,6 +77,7 @@
         <versions.grpc>1.70.0</versions.grpc>
         <!-- endregion -->
 
+        <versions.jspecify>1.0.0</versions.jspecify>
         <!--region vertx dependencies -->
         <versions.jool>0.9.15</versions.jool>
         <versions.vertx>5.0.5</versions.vertx>
@@ -242,6 +243,11 @@
                 <groupId>org.slf4j</groupId>
                 <artifactId>slf4j-api</artifactId>
                 <version>${versions.slf4j}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.jspecify</groupId>
+                <artifactId>jspecify</artifactId>
+                <version>${versions.jspecify}</version>
             </dependency>
             <!-- endregion -->
             <!--region utilities -->

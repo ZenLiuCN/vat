@@ -11,6 +11,7 @@ import java.util.regex.Pattern;
 /// @author Zen.Liu
 /// @since 2025-10-23
 
+@SuppressWarnings("unused")
 sealed public interface Cases {
 
 
@@ -81,7 +82,7 @@ sealed public interface Cases {
         }
         return sb.toString();
     });
-    Predicate<String> KEBAB_PATTERN = Pattern.compile("(?:\\p{Alnum}|(?:(?<=\\p{Alnum})-(?=\\p{Alnum})))*").asMatchPredicate();
+    Predicate<String> KEBAB_PATTERN = Pattern.compile("(?:\\p{Alnum}|(?<=\\p{Alnum})-(?=\\p{Alnum}))*").asMatchPredicate();
     CaseType KEBAB_CASE = new CaseType(w -> {
         var sb = new StringBuilder();
         for (var word : w) {
@@ -111,7 +112,7 @@ sealed public interface Cases {
         }
         return sb.toString();
     });
-    Predicate<String> SNAKE_PATTERN = Pattern.compile("(?:\\p{Alnum}|(?:(?<=\\p{Alnum})_(?=\\p{Alnum})))*").asMatchPredicate();
+    Predicate<String> SNAKE_PATTERN = Pattern.compile("(?:\\p{Alnum}|(?<=\\p{Alnum})_(?=\\p{Alnum}))*").asMatchPredicate();
     CaseType SNAKE_CASE = new CaseType(w -> {
         var sb = new StringBuilder();
         for (var word : w) {
@@ -141,7 +142,7 @@ sealed public interface Cases {
         }
         return sb.toString();
     });
-    Predicate<String> QUALIFIED_PATTERN = Pattern.compile("(?:\\p{Alnum}|(?:(?<=\\p{Alnum})\\.(?=\\p{Alnum})))*").asMatchPredicate();
+    Predicate<String> QUALIFIED_PATTERN = Pattern.compile("(?:\\p{Alnum}|(?<=\\p{Alnum})\\.(?=\\p{Alnum}))*").asMatchPredicate();
     CaseType QUALIFIED_CASE = new CaseType(w -> {
         var sb = new StringBuilder();
         for (var word : w) {

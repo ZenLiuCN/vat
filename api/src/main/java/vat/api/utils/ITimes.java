@@ -1,8 +1,8 @@
 package vat.api.utils;
 
 import io.vertx.core.json.JsonObject;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+
+import org.jspecify.annotations.Nullable;
 import vat.api.Data;
 
 import java.time.*;
@@ -18,13 +18,14 @@ import java.util.function.Predicate;
 /// @author Zen.Liu
 /// @since 2025-11-17
 
-
+@SuppressWarnings("unused")
 public interface ITimes {
     AtomicReference<ZoneId> ZONE = new AtomicReference<>(ZoneId.systemDefault());
 
     static ZoneOffset offset() {
         return ZONE.get().getRules().getOffset(Instant.now());
     }
+
 
     Temporal toTime();
 
@@ -116,7 +117,7 @@ public interface ITimes {
         }
 
         @Override
-        public int compareTo(@NotNull ITimes.ITime o) {
+        public int compareTo(ITimes.ITime o) {
             return value - o.value;
         }
         @Override
@@ -162,7 +163,7 @@ public interface ITimes {
         }
 
         @Override
-        public int compareTo(@NotNull ITimes.IDate o) {
+        public int compareTo(ITimes.IDate o) {
             return value - o.value;
         }
 
@@ -220,7 +221,7 @@ public interface ITimes {
         }
 
         @Override
-        public int compareTo(@NotNull ITimes.IDatetime o) {
+        public int compareTo(ITimes.IDatetime o) {
             return (int) (value - o.value);
         }
         @Override
@@ -252,7 +253,7 @@ public interface ITimes {
             return ToTicker.apply(LocalDateTime.now(ZONE.get()));
         }
 
-        /// TICK = YEAR[2B]|MONTH|DAY|HOUR|MINUTE|SECONDS|WEEKDAY (byte for each value)
+        /// TICK = YEAR\[2B\]|MONTH|DAY|HOUR|MINUTE|SECONDS|WEEKDAY (byte for each value)
         getTickFunc WEEKDAY = t -> (byte) (t & 0xFF);
         getTickFunc SECOND = t -> (byte) ((t >> 8) & 0xFF);
         getTickFunc MINUTE = t -> (byte) ((t >> 16) & 0xFF);

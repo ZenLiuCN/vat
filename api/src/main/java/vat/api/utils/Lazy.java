@@ -1,18 +1,22 @@
 package vat.api.utils;
 
 import lombok.SneakyThrows;
+import org.jspecify.annotations.Nullable;
 
 import java.util.function.*;
 
 ///
 /// @author Zen.Liu
 /// @since 2025-11-03
-public interface Lazy<T> {
+@SuppressWarnings({"unused", "DuplicatedCode"})
+public interface Lazy<T extends @Nullable Object> {
     T get();
 
 
     final class Delay<T> implements Lazy<T> {
+        @Nullable
         public volatile T v;
+        @Nullable
         public volatile Supplier<T> s;
 
         public Delay(Supplier<T> s) {
@@ -24,6 +28,7 @@ public interface Lazy<T> {
                 synchronized (this) {
                     if (s == null) return v;
                     var x = s;
+                    assert x != null;
                     s = null;
                     return v = x.get();
                 }
@@ -34,8 +39,11 @@ public interface Lazy<T> {
     }
 
     final class DelayError<T> implements Lazy<T> {
+        @Nullable
         public volatile T v;
+        @Nullable
         public volatile Exception err;
+        @Nullable
         public volatile Supplier<T> s;
 
         public DelayError(Supplier<T> s) {
@@ -48,6 +56,7 @@ public interface Lazy<T> {
                 synchronized (this) {
                     if (s == null) return v;
                     var x = s;
+                    assert x != null;
                     s = null;
                     try {
                         v = x.get();
@@ -58,21 +67,22 @@ public interface Lazy<T> {
                     return v;
                 }
             }
-            if (err != null) {
+            if (err != null)  //noinspection DataFlowIssue
                 throw err;
-            }
             return v;
         }
 
     }
 
-    interface Mutable<T> extends Lazy<T> {
+    interface Mutable<T extends @Nullable Object> extends Lazy<T> {
         void set(T v);
 
     }
 
-    final class MutableDelay<T> implements Mutable<T> {
+    final class MutableDelay<T extends @Nullable Object> implements Mutable<T> {
+        @Nullable
         public volatile T v;
+        @Nullable
         public volatile Supplier<T> s;
 
         public MutableDelay(Supplier<T> s) {
@@ -84,6 +94,7 @@ public interface Lazy<T> {
                 synchronized (this) {
                     if (s == null) return v;
                     var x = s;
+                    assert x != null;
                     s = null;
                     return v = x.get();
                 }
@@ -100,9 +111,12 @@ public interface Lazy<T> {
         }
     }
 
-    final class MutableDelayError<T> implements Mutable<T> {
+    final class MutableDelayError<T extends @Nullable Object> implements Mutable<T> {
+        @Nullable
         public volatile T v;
+        @Nullable
         public volatile Exception err;
+        @Nullable
         public volatile Supplier<T> s;
 
         public MutableDelayError(Supplier<T> s) {
@@ -117,6 +131,7 @@ public interface Lazy<T> {
                     var x = s;
                     s = null;
                     try {
+                        assert x != null;
                         v = x.get();
                     } catch (Exception e) {
                         err = e;
@@ -126,6 +141,7 @@ public interface Lazy<T> {
                 }
             }
             if (err != null) {
+                //noinspection DataFlowIssue
                 throw err;
             }
             return v;
@@ -169,6 +185,7 @@ public interface Lazy<T> {
 
     final class DelayBoolean implements LazyBoolean {
         public volatile boolean v;
+        @Nullable
         public volatile BooleanSupplier s;
 
         public DelayBoolean(BooleanSupplier s) {
@@ -181,6 +198,7 @@ public interface Lazy<T> {
                     if (s == null) return v;
                     var x = s;
                     s = null;
+                    assert x != null;
                     return v = x.getAsBoolean();
                 }
             }
@@ -191,7 +209,9 @@ public interface Lazy<T> {
 
     final class DelayErrorBoolean implements LazyBoolean {
         public volatile boolean v;
+        @Nullable
         public volatile Exception err;
+        @Nullable
         public volatile BooleanSupplier s;
 
         public DelayErrorBoolean(BooleanSupplier s) {
@@ -206,6 +226,7 @@ public interface Lazy<T> {
                     var x = s;
                     s = null;
                     try {
+                        assert x != null;
                         v = x.getAsBoolean();
                     } catch (Exception e) {
                         err = e;
@@ -215,6 +236,7 @@ public interface Lazy<T> {
                 }
             }
             if (err != null) {
+                //noinspection DataFlowIssue
                 throw err;
             }
             return v;
@@ -223,6 +245,7 @@ public interface Lazy<T> {
 
     final class MutableDelayBoolean implements MutableBoolean {
         public volatile boolean v;
+        @Nullable
         public volatile BooleanSupplier s;
 
         public MutableDelayBoolean(BooleanSupplier s) {
@@ -235,6 +258,7 @@ public interface Lazy<T> {
                     if (s == null) return v;
                     var x = s;
                     s = null;
+                    assert x != null;
                     return v = x.getAsBoolean();
                 }
             }
@@ -252,7 +276,9 @@ public interface Lazy<T> {
 
     final class MutableDelayErrorBoolean implements MutableBoolean {
         public volatile boolean v;
+        @Nullable
         public volatile Exception err;
+        @Nullable
         public volatile BooleanSupplier s;
 
         public MutableDelayErrorBoolean(BooleanSupplier s) {
@@ -267,6 +293,7 @@ public interface Lazy<T> {
                     var x = s;
                     s = null;
                     try {
+                        assert x != null;
                         v = x.getAsBoolean();
                     } catch (Exception e) {
                         err = e;
@@ -276,6 +303,7 @@ public interface Lazy<T> {
                 }
             }
             if (err != null) {
+                //noinspection DataFlowIssue
                 throw err;
             }
             return v;
@@ -313,6 +341,7 @@ public interface Lazy<T> {
 
     final class DelayInt implements LazyInt {
         public volatile int v;
+        @Nullable
         public volatile IntSupplier s;
 
         public DelayInt(IntSupplier s) {
@@ -325,6 +354,7 @@ public interface Lazy<T> {
                     if (s == null) return v;
                     var x = s;
                     s = null;
+                    assert x != null;
                     return v = x.getAsInt();
                 }
             }
@@ -335,7 +365,9 @@ public interface Lazy<T> {
 
     final class DelayErrorInt implements LazyInt {
         public volatile int v;
+        @Nullable
         public volatile Exception err;
+        @Nullable
         public volatile IntSupplier s;
 
         public DelayErrorInt(IntSupplier s) {
@@ -350,6 +382,7 @@ public interface Lazy<T> {
                     var x = s;
                     s = null;
                     try {
+                        assert x != null;
                         v = x.getAsInt();
                     } catch (Exception e) {
                         err = e;
@@ -359,6 +392,7 @@ public interface Lazy<T> {
                 }
             }
             if (err != null) {
+                //noinspection DataFlowIssue
                 throw err;
             }
             return v;
@@ -367,6 +401,7 @@ public interface Lazy<T> {
 
     final class MutableDelayInt implements MutableInt {
         public volatile int v;
+        @Nullable
         public volatile IntSupplier s;
 
         public MutableDelayInt(IntSupplier s) {
@@ -379,6 +414,7 @@ public interface Lazy<T> {
                     if (s == null) return v;
                     var x = s;
                     s = null;
+                    assert x != null;
                     return v = x.getAsInt();
                 }
             }
@@ -396,7 +432,9 @@ public interface Lazy<T> {
 
     final class MutableDelayErrorInt implements MutableInt {
         public volatile int v;
+        @Nullable
         public volatile Exception err;
+        @Nullable
         public volatile IntSupplier s;
 
         public MutableDelayErrorInt(IntSupplier s) {
@@ -411,6 +449,7 @@ public interface Lazy<T> {
                     var x = s;
                     s = null;
                     try {
+                        assert x != null;
                         v = x.getAsInt();
                     } catch (Exception e) {
                         err = e;
@@ -420,6 +459,7 @@ public interface Lazy<T> {
                 }
             }
             if (err != null) {
+                //noinspection DataFlowIssue
                 throw err;
             }
             return v;
@@ -462,6 +502,7 @@ public interface Lazy<T> {
 
     final class DelayLong implements LazyLong {
         public volatile long v;
+        @Nullable
         public volatile LongSupplier s;
 
         public DelayLong(LongSupplier s) {
@@ -474,6 +515,7 @@ public interface Lazy<T> {
                     if (s == null) return v;
                     var x = s;
                     s = null;
+                    assert x != null;
                     return v = x.getAsLong();
                 }
             }
@@ -484,7 +526,9 @@ public interface Lazy<T> {
 
     final class DelayErrorLong implements LazyLong {
         public volatile long v;
+        @Nullable
         public volatile Exception err;
+        @Nullable
         public volatile LongSupplier s;
 
         public DelayErrorLong(LongSupplier s) {
@@ -499,6 +543,7 @@ public interface Lazy<T> {
                     var x = s;
                     s = null;
                     try {
+                        assert x != null;
                         v = x.getAsLong();
                     } catch (Exception e) {
                         err = e;
@@ -508,6 +553,7 @@ public interface Lazy<T> {
                 }
             }
             if (err != null) {
+                //noinspection DataFlowIssue
                 throw err;
             }
             return v;
@@ -516,6 +562,7 @@ public interface Lazy<T> {
 
     final class MutableDelayLong implements MutableLong {
         public volatile long v;
+        @Nullable
         public volatile LongSupplier s;
 
         public MutableDelayLong(LongSupplier s) {
@@ -528,6 +575,7 @@ public interface Lazy<T> {
                     if (s == null) return v;
                     var x = s;
                     s = null;
+                    assert x != null;
                     return v = x.getAsLong();
                 }
             }
@@ -545,7 +593,9 @@ public interface Lazy<T> {
 
     final class MutableDelayErrorLong implements MutableLong {
         public volatile long v;
+        @Nullable
         public volatile Exception err;
+        @Nullable
         public volatile LongSupplier s;
 
         public MutableDelayErrorLong(LongSupplier s) {
@@ -560,6 +610,7 @@ public interface Lazy<T> {
                     var x = s;
                     s = null;
                     try {
+                        assert x != null;
                         v = x.getAsLong();
                     } catch (Exception e) {
                         err = e;
@@ -569,6 +620,7 @@ public interface Lazy<T> {
                 }
             }
             if (err != null) {
+                //noinspection DataFlowIssue
                 throw err;
             }
             return v;
@@ -611,6 +663,7 @@ public interface Lazy<T> {
 
     final class DelayDouble implements LazyDouble {
         public volatile double v;
+        @Nullable
         public volatile DoubleSupplier s;
 
         public DelayDouble(DoubleSupplier s) {
@@ -623,6 +676,7 @@ public interface Lazy<T> {
                     if (s == null) return v;
                     var x = s;
                     s = null;
+                    assert x != null;
                     return v = x.getAsDouble();
                 }
             }
@@ -631,9 +685,12 @@ public interface Lazy<T> {
 
     }
 
+
     final class DelayErrorDouble implements LazyDouble {
         public volatile double v;
+        @Nullable
         public volatile Exception err;
+        @Nullable
         public volatile DoubleSupplier s;
 
         public DelayErrorDouble(DoubleSupplier s) {
@@ -648,6 +705,7 @@ public interface Lazy<T> {
                     var x = s;
                     s = null;
                     try {
+                        assert x != null;
                         v = x.getAsDouble();
                     } catch (Exception e) {
                         err = e;
@@ -657,6 +715,7 @@ public interface Lazy<T> {
                 }
             }
             if (err != null) {
+                //noinspection DataFlowIssue
                 throw err;
             }
             return v;
@@ -665,6 +724,7 @@ public interface Lazy<T> {
 
     final class MutableDelayDouble implements MutableDouble {
         public volatile double v;
+        @Nullable
         public volatile DoubleSupplier s;
 
         public MutableDelayDouble(DoubleSupplier s) {
@@ -677,6 +737,7 @@ public interface Lazy<T> {
                     if (s == null) return v;
                     var x = s;
                     s = null;
+                    assert x != null;
                     return v = x.getAsDouble();
                 }
             }
@@ -694,7 +755,9 @@ public interface Lazy<T> {
 
     final class MutableDelayErrorDouble implements MutableDouble {
         public volatile double v;
+        @Nullable
         public volatile Exception err;
+        @Nullable
         public volatile DoubleSupplier s;
 
         public MutableDelayErrorDouble(DoubleSupplier s) {
@@ -709,6 +772,7 @@ public interface Lazy<T> {
                     var x = s;
                     s = null;
                     try {
+                        assert x != null;
                         v = x.getAsDouble();
                     } catch (Exception e) {
                         err = e;
@@ -718,6 +782,7 @@ public interface Lazy<T> {
                 }
             }
             if (err != null) {
+                //noinspection DataFlowIssue
                 throw err;
             }
             return v;

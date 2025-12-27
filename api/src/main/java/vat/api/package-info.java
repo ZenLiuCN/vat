@@ -16,4 +16,7 @@
 /// 1. All domain elements should share only one package name.
 /// 2. It's easier to defined domain api elements with-in closure of a top level Activities.
 /// 3. All domain elements property are not use java bean protocol.
+@NullMarked
 package vat.api;
+
+import org.jspecify.annotations.NullMarked;

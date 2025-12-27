@@ -2,11 +2,13 @@ package vat.api.utils;
 
 import io.vertx.core.buffer.Buffer;
 
+
 ///
 /// @author Zen.Liu
 /// @since 2025-11-19
 
 
+@SuppressWarnings("unused")
 public interface BufferCodec {
     Buffer encode(Buffer v);
 
@@ -90,7 +92,7 @@ public interface BufferCodec {
 
             @Override
             public CharSequence encode(Buffer v) {
-                int i = 0, index = 0, digit = 0;
+                int i = 0, index = 0, digit;
                 int currByte, nextByte;
                 var base32 = new StringBuilder((v.length() + 7) * 8 / 5);
                 while (i < v.length()) {

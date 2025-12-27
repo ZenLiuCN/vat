@@ -3,6 +3,7 @@ package vat.api.utils;
 import io.vertx.core.Future;
 import io.vertx.core.json.JsonObject;
 import lombok.EqualsAndHashCode;
+import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.Range;
 import org.jooq.lambda.tuple.Tuple;
 import org.jooq.lambda.tuple.Tuple4;
@@ -26,6 +27,7 @@ import java.util.stream.IntStream;
 /// @since 2025-11-19
 
 
+@SuppressWarnings("unused")
 public interface CronTab extends Data {
     Logger log = LoggerFactory.getLogger(CronTab.class);
 
@@ -55,6 +57,7 @@ public interface CronTab extends Data {
         return check(ITimes.datetime(datetime));
     }
 
+    @SuppressWarnings("LoggingSimilarMessage")
     final class cron implements CronTab {
         final int[] p;
         ///  when dynamic never needs to calculate tick
@@ -511,8 +514,52 @@ public interface CronTab extends Data {
         interface makeFieldFunc {
             int apply(int type, int flag, int v0, int v1);
         }
-
+        private static IllegalArgumentException error(char c, String v, int i) {
+            return new IllegalArgumentException("invalid pattern '%s' of \"%s\"[%d]".formatted(c, v, i));
+        }
         static int[] parse(String pattern) {
+            var v = pattern.trim();
+            var n = new int[6];
+            int f = -1, p = 0, x = VALUE_INVALID, y = VALUE_INVALID;
+            for (var i = 0; i < v.length(); i++) {
+                char c = v.charAt(i);
+                if (p > 5) throw new IllegalArgumentException("overflow %s at %d".formatted(c, i));
+                switch (c) {
+                    case '*' -> {
+                        if (f != -1) throw error(c, v, i);
+                        f = ANY;
+                    }
+                    case '/' -> {
+                        if (f == ANY && x == VALUE_INVALID) f = EVERY;
+                        else throw error(c, v, i);
+                    }
+                    case '-' -> {
+                        if (f == ANY && x != VALUE_INVALID) {
+                            f = RANG; y = x; x = VALUE_INVALID;
+                        } else throw error(c, v, i);
+                    }
+                    case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9' -> {
+                        x = (x != VALUE_INVALID) ? x * 10 + (c - '0') : (c - '0');
+                        if (f == -1) f = ANY;
+                    }
+                    case ' ', '\t' -> {
+                        if (x == VALUE_INVALID && f == -1) continue;
+                        n[p++] = MakeField.apply(0, f, Math.min(x, y == VALUE_INVALID ? x : y), Math.max(x, y));
+                        x = VALUE_INVALID; y = VALUE_INVALID; f = -1;
+                    }
+                    default -> throw error(c, v, i);
+                }
+            }
+            // Process the final segment
+            n[p] = MakeField.apply(0, f, x, y);
+            // Dynamic field indexing
+            var hasSeconds = (p > 4);
+            var s = hasSeconds ? FIELD_SECOND : FIELD_MINUTE;
+            for (var i = 0; i <= p; i++) {
+                n[i] = SetFIELD.apply(n[i], s + i);
+            }
+            return hasSeconds ? n : Arrays.copyOf(n, 5);
+            /*
             var n = new int[6];//! field 0-6
             Arrays.fill(n, 0);
             var f = -1; //! flag
@@ -583,7 +630,7 @@ public interface CronTab extends Data {
                     s++;
                 }
                 return Arrays.copyOf(n, n.length - 1);
-            }
+            }*/
         }
 
         static boolean validateFields(int[] v) {
@@ -613,7 +660,7 @@ public interface CronTab extends Data {
         }
 
         static String format(int[] v) {
-            if (v == null || v.length < 5 || v.length > 6)
+            if (v.length < 5 || v.length > 6)
                 throw new IllegalArgumentException("invalid pattern data " + Arrays.toString(v));
             var b = new StringBuilder();
             for (int i = 0; i < v.length; i++) {

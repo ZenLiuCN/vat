@@ -3,6 +3,8 @@ package vat.api.utils;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Collection;
@@ -15,6 +17,8 @@ import java.util.function.*;
 /// @since 2025-10-27
 
 
+@SuppressWarnings("unused")
+@NullMarked
 public interface Buf {
     BiConsumer<Long, Buf> I64 = Fn.swapConsumer(Buf::i64);
     BiConsumer<Long, Buf> Z64 = Fn.swapConsumer(Buf::z64);
@@ -196,7 +200,7 @@ public interface Buf {
         return i32(v);
     }
 
-    default String string() {
+    default @Nullable String string() {
         var n = z32();
         if (n < 0) return null;
         if (n == 0) return "";
@@ -204,128 +208,129 @@ public interface Buf {
         return new String(b, StandardCharsets.UTF_8);
     }
 
-    default Buf string(String v) {
+    default Buf string(@Nullable String v) {
         if (v == null) return z32(-1);
         if (v.isEmpty()) return z32(0);
         var b = v.getBytes(StandardCharsets.UTF_8);
         return bytes(b);
     }
 
-    default <T> Buf object(T obj, BiConsumer<T, Buf> write) {
+    default <T> Buf object(@Nullable T obj, BiConsumer<T, Buf> write) {
         if (obj == null) return bool(false);
         bool(true);
         write.accept(obj, this);
         return this;
     }
 
-    default <T> T object(Function<Buf, T> write) {
+    default <T> @Nullable T object(Function<Buf, @Nullable T> write) {
         var b = bool();
         if (!b) return null;
         return write.apply(this);
     }
 
-    default byte[] binary() {
+    default byte @Nullable [] binary() {
         var v = z32();
         if (v < 0) return null;
         if (v == 0) return new byte[0];
         return bytes(v);
     }
 
-    default Buf binary(byte[] v) {
+    default Buf binary(byte @Nullable [] v) {
         if (v == null) return z32(-1);
         if (v.length == 0) return z32(0);
         return z32(v.length).bytes(v);
     }
 
-    default Buf buffer(Buffer v) {
+    default Buf buffer(@Nullable Buffer v) {
         if (v == null) return z32(-1);
         if (v.length() == 0) return z32(0);
         return z32(v.length()).writeBuffer(v);
     }
 
-    default Buffer buffer() {
+    default @Nullable Buffer buffer() {
         var v = z32();
         if (v < 0) return null;
         if (v == 0) return Buffer.buffer();
         return readBuffer(v);
     }
 
-    default <R> R nullable(Function<Buf, R> read) {
+    default <R> @Nullable R nullable(Function<Buf, R> read) {
         return bool() ? read.apply(this) : null;
     }
 
-    default <R> Buf nullable(BiFunction<Buf, R, Buf> write, R v) {
+    default <R> Buf nullable(BiFunction<Buf, R, Buf> write, @Nullable R v) {
         if (v == null) {
             bool(false);
+            return this;
         }
         return write.apply(bool(true), v);
     }
 
-    default Boolean booleanObject() {
+    default @Nullable Boolean booleanObject() {
         return nullable(Buf::bool);
     }
 
-    default Byte byteObject() {
+    default @Nullable Byte byteObject() {
         return nullable(Buf::i8);
     }
 
-    default Short shortObject() {
+    default @Nullable Short shortObject() {
         return nullable(Buf::i16);
     }
 
-    default Integer integerObject() {
+    default @Nullable Integer integerObject() {
         return nullable(Buf::z32);
     }
 
-    default Long longObject() {
+    default @Nullable Long longObject() {
         return nullable(Buf::z64);
     }
 
-    default Float floatObject() {
+    default @Nullable Float floatObject() {
         return nullable(Buf::f32);
     }
 
-    default Double doubleObject() {
+    default @Nullable Double doubleObject() {
         return nullable(Buf::f64);
     }
 
-    default Character characterObject() {
+    default @Nullable Character characterObject() {
         return bool() ? (char) i32() : null;
     }
 
-    default Buf booleanObject(Boolean v) {
+    default Buf booleanObject(@Nullable Boolean v) {
         return nullable(Buf::bool, v);
     }
 
-    default Buf byteObject(Byte v) {
+    default Buf byteObject(@Nullable Byte v) {
         return nullable(Buf::i8, v);
     }
 
-    default Buf shortObject(Short v) {
+    default Buf shortObject(@Nullable Short v) {
         return nullable(Buf::i16, v);
     }
 
-    default Buf integerObject(Integer v) {
+    default Buf integerObject(@Nullable Integer v) {
         return nullable(Buf::z32, v);
     }
 
-    default Buf longObject(Long v) {
+    default Buf longObject(@Nullable Long v) {
         return nullable(Buf::z64, v);
     }
 
-    default Buf floatObject(Float v) {
+    default Buf floatObject(@Nullable Float v) {
         return nullable(Buf::f32, v);
     }
 
-    default Buf doubleObject(Double v) {
+    default Buf doubleObject(@Nullable Double v) {
         return nullable(Buf::f64, v);
     }
 
-    default Buf characterObject(Character v) {
+    default Buf characterObject(@Nullable Character v) {
         return v == null ? bool(false) : bool(true).i32((int) v);
     }
 
-    default boolean[] boolArray() {
+    default boolean @Nullable [] boolArray() {
         var v = z32();
         if (v < 0) return null;
         if (v == 0) return new boolean[0];
@@ -336,7 +341,7 @@ public interface Buf {
         return x;
     }
 
-    default Buf boolArray(boolean[] v) {
+    default Buf boolArray(boolean @Nullable [] v) {
         if (v == null) return z32(-1);
         if (v.length == 0) return z32(0);
         z32(v.length);
@@ -346,7 +351,7 @@ public interface Buf {
         return this;
     }
 
-    default short[] i16Array() {
+    default short @Nullable [] i16Array() {
         var v = z32();
         if (v < 0) return null;
         if (v == 0) return new short[0];
@@ -357,7 +362,7 @@ public interface Buf {
         return x;
     }
 
-    default Buf i16Array(short[] v) {
+    default Buf i16Array(short @Nullable [] v) {
         if (v == null) return z32(-1);
         if (v.length == 0) return z32(0);
         z32(v.length);
@@ -367,7 +372,7 @@ public interface Buf {
         return this;
     }
 
-    default int[] i32Array() {
+    default int @Nullable [] i32Array() {
         var v = z32();
         if (v < 0) return null;
         if (v == 0) return new int[0];
@@ -378,7 +383,7 @@ public interface Buf {
         return x;
     }
 
-    default Buf i32Array(int[] v) {
+    default Buf i32Array(int @Nullable [] v) {
         if (v == null) return z32(-1);
         if (v.length == 0) return z32(0);
         z32(v.length);
@@ -388,7 +393,7 @@ public interface Buf {
         return this;
     }
 
-    default long[] i64Array() {
+    default long @Nullable [] i64Array() {
         var v = z32();
         if (v < 0) return null;
         if (v == 0) return new long[0];
@@ -399,7 +404,7 @@ public interface Buf {
         return x;
     }
 
-    default Buf i64Array(long[] v) {
+    default Buf i64Array(long @Nullable [] v) {
         if (v == null) return z32(-1);
         if (v.length == 0) return z32(0);
         z32(v.length);
@@ -409,7 +414,7 @@ public interface Buf {
         return this;
     }
 
-    default float[] f32Array() {
+    default float @Nullable [] f32Array() {
         var v = z32();
         if (v < 0) return null;
         if (v == 0) return new float[0];
@@ -420,7 +425,7 @@ public interface Buf {
         return x;
     }
 
-    default Buf f32Array(float[] v) {
+    default Buf f32Array(float @Nullable [] v) {
         if (v == null) return z32(-1);
         if (v.length == 0) return z32(0);
         z32(v.length);
@@ -430,7 +435,7 @@ public interface Buf {
         return this;
     }
 
-    default double[] f64Array() {
+    default double @Nullable [] f64Array() {
         var v = z32();
         if (v < 0) return null;
         if (v == 0) return new double[0];
@@ -441,7 +446,7 @@ public interface Buf {
         return x;
     }
 
-    default Buf f64Array(double[] v) {
+    default Buf f64Array(double @Nullable [] v) {
         if (v == null) return z32(-1);
         if (v.length == 0) return z32(0);
         z32(v.length);
@@ -451,7 +456,7 @@ public interface Buf {
         return this;
     }
 
-    default char[] characterArray() {
+    default char @Nullable [] characterArray() {
         var v = z32();
         if (v < 0) return null;
         if (v == 0) return new char[0];
@@ -462,7 +467,7 @@ public interface Buf {
         return x;
     }
 
-    default Buf characterArray(char[] v) {
+    default Buf characterArray(char @Nullable [] v) {
         if (v == null) return z32(-1);
         if (v.length == 0) return z32(0);
         z32(v.length);
@@ -476,15 +481,15 @@ public interface Buf {
     void reset();
 
 
-    interface IndexWriter<T> {
+    interface IndexWriter<T extends @Nullable Object> {
         void accept(Buf buf, int index, T v);
     }
 
-    interface IndexReader<T> {
+    interface IndexReader<T extends @Nullable Object> {
         T apply(Buf buf, int index);
     }
 
-    default <T, E extends Collection<T>> Buf repeat(E v, IndexWriter<T> write) {
+    default <T, E extends Collection<@Nullable T>> Buf repeat(@Nullable E v, IndexWriter<@Nullable T> write) {
         if (v == null) return z32(-1);
         if (v.isEmpty()) return z32(0);
         z32(v.size());
@@ -496,7 +501,7 @@ public interface Buf {
         return this;
     }
 
-    default <T, E extends Collection<T>> Buf repeat(E v, BiConsumer<T, Buf> write) {
+    default <T, E extends Collection<@Nullable T>> Buf repeat(@Nullable E v, BiConsumer<@Nullable T, Buf> write) {
         if (v == null) return z32(-1);
         if (v.isEmpty()) return z32(0);
         z32(v.size());
@@ -506,7 +511,8 @@ public interface Buf {
         return this;
     }
 
-    default <T, E extends Collection<T>> E repeat(IntFunction<E> v, IndexReader<T> reader) {
+    default <T, E extends Collection<@Nullable T>> @Nullable E repeat(IntFunction<E> v,
+                                                                      IndexReader<@Nullable T> reader) {
         var n = z32();
         if (n < 0) return null;
         if (n == 0) return v.apply(0);
@@ -517,7 +523,8 @@ public interface Buf {
         return x;
     }
 
-    default <T, E extends Collection<T>> E repeat(IntFunction<E> v, Function<Buf, T> reader) {
+    default <T, E extends Collection<@Nullable T>> @Nullable E repeat(IntFunction<E> v,
+                                                                      Function<Buf, @Nullable T> reader) {
         var n = z32();
         if (n < 0) return null;
         if (n == 0) return v.apply(0);
@@ -528,7 +535,8 @@ public interface Buf {
         return x;
     }
 
-    default <K, V, E extends Map<K, V>> Buf map(E v, IndexWriter<K> keyWrite, IndexWriter<V> valueWrite) {
+    default <K, V, E extends Map<K, @Nullable V>> Buf map(@Nullable E v, IndexWriter<K> keyWrite,
+                                                          IndexWriter<@Nullable V> valueWrite) {
         if (v == null) return z32(-1);
         if (v.isEmpty()) return z32(0);
         z32(v.size());
@@ -541,7 +549,8 @@ public interface Buf {
         return this;
     }
 
-    default <K, V, E extends Map<K, V>> Buf map(E v, BiConsumer<Buf, K> keyWrite, BiConsumer<V, Buf> valueWrite) {
+    default <K, V, E extends Map<K, @Nullable V>> Buf map(@Nullable E v, BiConsumer<Buf, K> keyWrite,
+                                                          BiConsumer<@Nullable V, Buf> valueWrite) {
         if (v == null) return z32(-1);
         if (v.isEmpty()) return z32(0);
         z32(v.size());
@@ -552,7 +561,8 @@ public interface Buf {
         return this;
     }
 
-    default <K, V, E extends Map<K, V>> E map(IntFunction<E> v, IndexReader<K> keyReader, IndexReader<V> valueReader) {
+    default <K, V, E extends Map<K, @Nullable V>> @Nullable E map(IntFunction<E> v, IndexReader<K> keyReader,
+                                                                  IndexReader<@Nullable V> valueReader) {
         var n = z32();
         if (n < 0) return null;
         if (n == 0) return v.apply(0);
@@ -563,7 +573,8 @@ public interface Buf {
         return x;
     }
 
-    default <K, V, E extends Map<K, V>> E map(IntFunction<E> v, Function<Buf, K> keyReader, Function<Buf, V> valueReader) {
+    default <K, V, E extends Map<K, @Nullable V>> @Nullable E map(IntFunction<E> v, Function<Buf, K> keyReader,
+                                                                  Function<Buf, @Nullable V> valueReader) {
         var n = z32();
         if (n < 0) return null;
         if (n == 0) return v.apply(0);
@@ -574,7 +585,7 @@ public interface Buf {
         return x;
     }
 
-    default <T> Buf array(T[] v, IndexWriter<T> write) {
+    default <T> Buf array(T @Nullable [] v, IndexWriter<T> write) {
         if (v == null) return z32(-1);
         if (v.length == 0) return z32(0);
         z32(v.length);
@@ -586,7 +597,7 @@ public interface Buf {
         return this;
     }
 
-    default <T> Buf array(T[] v, BiConsumer<Buf, T> write) {
+    default <T> Buf array(T @Nullable [] v, BiConsumer<Buf, T> write) {
         if (v == null) return z32(-1);
         if (v.length == 0) return z32(0);
         z32(v.length);
@@ -596,22 +607,22 @@ public interface Buf {
         return this;
     }
 
-    default <T> T[] array(IntFunction<T[]> v, IndexReader<T> reader) {
+    default <T> @Nullable T @Nullable [] array(IntFunction<@Nullable T[]> v, IndexReader<@Nullable T> reader) {
         var n = z32();
         if (n < 0) return null;
         if (n == 0) return v.apply(0);
-        var x = v.apply(n);
+        @Nullable T[] x = v.apply(n);
         for (int i = 0; i < n; i++) {
             x[i] = (reader.apply(this, i));
         }
         return x;
     }
 
-    default <T> T[] array(IntFunction<T[]> v, Function<Buf, T> reader) {
+    default <T> @Nullable T @Nullable [] array(IntFunction<@Nullable T[]> v, Function<Buf, @Nullable T> reader) {
         var n = z32();
         if (n < 0) return null;
         if (n == 0) return v.apply(0);
-        var x = v.apply(n);
+        @Nullable T[] x = v.apply(n);
         for (int i = 0; i < n; i++) {
             x[i] = (reader.apply(this));
         }
@@ -619,7 +630,7 @@ public interface Buf {
     }
 
 
-    default Buf buf(Buf v) {
+    default Buf buf(@Nullable Buf v) {
         if (v == null) return z32(-1);
         var n = v.raw().length();
         if (n == 0) return z32(0);
@@ -627,7 +638,7 @@ public interface Buf {
         return append(v);
     }
 
-    default Buf buf() {
+    default @Nullable Buf buf() {
         var n = z32();
         if (n < 0) return null;
         return slice(n);
@@ -683,7 +694,7 @@ public interface Buf {
         }
 
         @Override
-        public Buf bytes(byte[] bytes) {
+        public Buf bytes(byte @Nullable [] bytes) {
             if (bytes == null) return z32(-1);
             z32(bytes.length);
             pos.addAndGet(bytes.length);

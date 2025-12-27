@@ -2,9 +2,8 @@ package vat.api.utils;
 
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
-import org.jetbrains.annotations.NotNull;
+import org.jspecify.annotations.Nullable;
 import vat.api.DomainError;
-import vat.api.meta.Nullable;
 import vat.api.store.Field;
 import vat.api.store.Statement;
 import vat.api.store.Value;
@@ -19,6 +18,7 @@ import java.util.function.Function;
 /// @since 2025-11-19
 
 
+@SuppressWarnings("unused")
 public interface JSON {
     Base64.Encoder BASE64_ENCODER = Base64.getUrlEncoder().withoutPadding();
     Base64.Decoder BASE64_DECODER = Base64.getUrlDecoder();
@@ -70,11 +70,13 @@ public interface JSON {
                 };
             }
         }
+        assert r != null;
         return (Value.JsonObjectValue) r;
     }
 
     /// @param p when path is null or empty set full field as value
-    static Statement.SetStmt jsonObjectPathWrite(@Nullable JsonArray p, @NotNull JsonObject value, Field.JsonObjectField profile) {
+    static Statement.SetStmt jsonObjectPathWrite(@Nullable JsonArray p, JsonObject value,
+                                                 Field.JsonObjectField profile) {
         if (p == null || p.isEmpty()) return profile.set(value);
         var path = jsonPath(p);
         if (!(path.getFirst() instanceof String s))
@@ -84,7 +86,8 @@ public interface JSON {
     }
 
     interface Functor {
-        static Function<JsonArray, Value.@Nullable JsonObjectValue> jsonObjectPathRead(Value.JsonObjectValue profile) {
+        static Function<@Nullable JsonArray, Value.@Nullable JsonObjectValue> jsonObjectPathRead(
+                Value.JsonObjectValue profile) {
             return j -> j == null ? null : JSON.jsonObjectPathRead(j, profile);
         }
     }

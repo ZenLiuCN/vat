@@ -5,14 +5,15 @@ import io.vertx.core.buffer.Buffer;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import lombok.SneakyThrows;
+import org.jspecify.annotations.Nullable;
 import vat.api.Data;
 import vat.api.implement.Codec;
-import vat.api.meta.Nullable;
 import vat.api.utils.Buf;
 import vat.api.utils.Fn;
 
 import java.math.BigDecimal;
 import java.time.*;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Function;
@@ -21,16 +22,17 @@ import java.util.function.Function;
 ///
 /// @author Zen.Liu
 /// @since 2025-12-02
+@SuppressWarnings("unused")
 public record Any(@Nullable Object value, Class<?> type) implements Data, Data.Binary {
     public Any(Buf v) {
-        this(Codec.clazz(v.string()), parseBuf(v));
+        this(Objects.requireNonNull(Codec.clazz(v.string())), parseBuf(v));
     }
 
-    Any(@Nullable Class<?> type, Object value) {
+    Any(Class<?> type, @Nullable Object value) {
         this(value, type);
     }
 
-    public static Buf formatBuf(Buf buf, Object value, Class<?> type) {
+    public static Buf formatBuf(Buf buf, @Nullable Object value,  Class<?> type) {
         buf.string(type.isPrimitive() ? type.getName() : type.getCanonicalName());
         return switch (value) {
             case null -> buf.bool(false);
@@ -66,25 +68,25 @@ public record Any(@Nullable Object value, Class<?> type) implements Data, Data.B
 
     @SuppressWarnings({"rawtypes", "unchecked"})
     @SneakyThrows
-    public static Object parseBuf(Buf buf) {
+    public static @Nullable Object parseBuf(Buf buf) {
         buf.reset();
         var clz = (Class) Codec.clazz(buf.string());
         if (!buf.bool()) return null;
         if (clz == null) return null;
-        if (clz == boolean.class || clz == Boolean.class) return (Boolean) buf.bool();
-        if (clz == byte.class || clz == Byte.class) return (Byte) buf.i8();
-        if (clz == short.class || clz == Short.class) return (Short) buf.i16();
-        if (clz == int.class || clz == Integer.class) return (Integer) buf.i32();
-        if (clz == char.class || clz == Character.class) return (Character) (char) buf.i32();
-        if (clz == long.class || clz == Long.class) return (Long) buf.i64();
-        if (clz == float.class || clz == Float.class) return (Float) buf.f32();
-        if (clz == double.class || clz == Double.class) return (Double) buf.f64();
+        if (clz == boolean.class || clz == Boolean.class) return buf.bool();
+        if (clz == byte.class || clz == Byte.class) return buf.i8();
+        if (clz == short.class || clz == Short.class) return buf.i16();
+        if (clz == int.class || clz == Integer.class) return buf.i32();
+        if (clz == char.class || clz == Character.class) return (char) buf.i32();
+        if (clz == long.class || clz == Long.class) return buf.i64();
+        if (clz == float.class || clz == Float.class) return buf.f32();
+        if (clz == double.class || clz == Double.class) return buf.f64();
         if (clz == byte[].class) return buf.binary();
         if (clz == Buffer.class) return buf.buffer();
-        if (clz == JsonObject.class) return buf.buffer().toJsonObject();
-        if (clz == JsonArray.class) return buf.buffer().toJsonArray();
+        if (clz == JsonObject.class) return Optional.ofNullable(buf.buffer()).map(Buffer::toJsonObject).orElse(null);
+        if (clz == JsonArray.class) return Optional.ofNullable(buf.buffer()).map(Buffer::toJsonArray).orElse(null);
         if (clz == String.class) return buf.string();
-        if (clz == BigDecimal.class) return new BigDecimal(buf.string());
+        if (clz == BigDecimal.class) return Optional.ofNullable(buf.string()).map(BigDecimal::new).orElse(null);
         if (clz == LocalDateTime.class) return Codec.datetime(buf.string());
         if (clz == LocalDate.class) return Codec.date(buf.string());
         if (clz == LocalTime.class) return Codec.time(buf.string());
@@ -98,7 +100,8 @@ public record Any(@Nullable Object value, Class<?> type) implements Data, Data.B
         if (clz == Instant.class) return Instant.ofEpochMilli(buf.i64());
         if (clz.isAssignableFrom(Data.Binary.class)) {
             if (clz.isInterface())
-                return Codec.binary((Class<Binary>) clz).orElseThrow(() -> new IllegalArgumentException("unsupported any value: " + clz)).read(buf);
+                return Codec.binary((Class<Binary>) clz)
+                            .orElseThrow(() -> new IllegalArgumentException("unsupported any value: " + clz)).read(buf);
             return clz.getConstructor(Buf.class).newInstance(buf);
         }
         //@formatter:on
@@ -119,7 +122,7 @@ public record Any(@Nullable Object value, Class<?> type) implements Data, Data.B
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
-    public static Object parseJson(JsonObject v, boolean js) {
+    public static @Nullable Object parseJson(JsonObject v, boolean js) {
         var clz = (Class) Codec.clazz(v.getString("$union"));
         //@formatter:off
         if(clz==null) return null;
@@ -158,7 +161,7 @@ public record Any(@Nullable Object value, Class<?> type) implements Data, Data.B
         throw new IllegalArgumentException("unsupported any value: " + v);
     }
 
-    public static JsonObject formatJson(Object value, Class<?> type, boolean js) {
+    public static JsonObject formatJson(@Nullable Object value, Class<?> type, boolean js) {
         var jo = JsonObject.of("$union", type.isPrimitive() ? type.getName() : type.getCanonicalName());
         return switch (value) {
             case null -> jo;
@@ -209,20 +212,22 @@ public record Any(@Nullable Object value, Class<?> type) implements Data, Data.B
 
     public <T> Optional<T> value(Class<T> type) {
         return Optional.ofNullable(value)
-                .filter(type::isInstance)
-                .map(type::cast);
+                       .filter(type::isInstance)
+                       .map(type::cast);
     }
-    public <T,R> Optional<R> when(Class<T> type, Function<T,R> action) {
+
+    public <T, R> Optional<R> when(Class<T> type, Function<T, R> action) {
         return Optional.ofNullable(value)
-                .filter(type::isInstance)
-                .map(type::cast)
-                .map(action);
+                       .filter(type::isInstance)
+                       .map(type::cast)
+                       .map(action);
     }
-    public <T,R> Future<Optional<R>> whenFuture(Class<T> type, Function<T,Future<R>> action) {
+
+    public <T, R> Future<Optional<R>> whenFuture(Class<T> type, Function<T, Future<R>> action) {
         return Optional.ofNullable(value)
-                .filter(type::isInstance)
-                .map(type::cast)
-                .map(Fn.Maybe.Flat.optional(action))
-                .orElseGet(()->Future.succeededFuture(Optional.empty()));
+                       .filter(type::isInstance)
+                       .map(type::cast)
+                       .map(Fn.Maybe.Flat.optional(action))
+                       .orElseGet(() -> Future.succeededFuture(Optional.empty()));
     }
 }

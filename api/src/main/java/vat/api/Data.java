@@ -4,7 +4,9 @@ import io.vertx.core.Future;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.json.JsonObject;
 import lombok.ToString;
+import org.jspecify.annotations.Nullable;
 import vat.api.meta.Describe;
+import vat.api.meta.Identity;
 import vat.api.trait.Applicative;
 import vat.api.utils.Buf;
 
@@ -18,6 +20,7 @@ import java.util.function.Predicate;
  * @since 2025-10-20
  */
 @Prototype
+@SuppressWarnings("unused")
 public interface Data extends Domain {
     interface Comparable<T extends java.lang.Comparable<T>> extends Data, java.lang.Comparable<T> {
     }
@@ -86,7 +89,7 @@ public interface Data extends Domain {
 
     interface Accessor<T> {
 
-        <R> R apply(Function<T, R> m);
+        <R> R apply(Function<T, @Nullable R> m);
 
         T accept(Consumer<T> m);
 
@@ -94,18 +97,19 @@ public interface Data extends Domain {
 
         boolean test(Predicate<T> m);
 
-        <R> Future<R> applyFuture(Function<T, Future<R>> m);
+        <R> Future<@Nullable R> applyFuture(Function<T, Future<@Nullable R>> m);
 
-        Future<T> acceptFuture(Function<T, Future<Void>> m);
+        Future<T> acceptFuture(Function<T, Future<@Nullable Void>> m);
 
-        Future<T> acceptFuture(boolean cond, Function<T, Future<Void>> m);
+        Future<T> acceptFuture(boolean cond, Function<T, Future<@Nullable Void>> m);
 
         Future<Boolean> testFuture(Function<T, Future<Boolean>> m);
     }
 
     /// request data object to invoke a activities action.
     interface Request<T extends Request<T>> extends Validation<T> {
-        @Describe(value = "_AUTHORITY_USER", identity = "vat.foundation.users.api.Users::identity")
+        @Describe(value = "_AUTHORITY_USER")
+        @Identity.Refer("vat.foundation.users.api.Users::identity")
         Optional<Long> actor();
     }
 
