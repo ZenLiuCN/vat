@@ -41,7 +41,7 @@ public sealed interface Pipeline<C, T, S extends Pipeline<C, ?, S>> {
         return new Simple<>(context, Future.succeededFuture(value));
     }
 
-    /// factory from an existsed future
+    /// factory from an existed future
     static <C, T> Simple<C, T> of(C context, Future<T> value) {
         return new Simple<>(context, value);
     }
