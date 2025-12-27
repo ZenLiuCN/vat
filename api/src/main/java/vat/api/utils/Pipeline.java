@@ -27,6 +27,7 @@ public sealed interface Pipeline<C, T, S extends Pipeline<C, ?, S>> {
 
     <R> Pipeline<C, R, S> wrap(Future<R> nextFuture);
 
+    //region Base
     record Simple<C, T>(C context, Future<T> get)
             implements Pipeline<C, T, Simple<C, ?>> {
         @Override
@@ -376,6 +377,7 @@ public sealed interface Pipeline<C, T, S extends Pipeline<C, ?, S>> {
     default <NC> Pipeline<NC, T, ?> withContext(NC newContext) {
         return Pipeline.of(newContext, get());
     }
+    //endregion
 
     /// Pipeline with Resilience breaker
     ///
@@ -436,6 +438,7 @@ public sealed interface Pipeline<C, T, S extends Pipeline<C, ?, S>> {
         }
     }
 
+    //region Batch
     sealed interface Batch<C, I, T extends Iterable<I>> {
         C context();
 
@@ -584,28 +587,29 @@ public sealed interface Pipeline<C, T, S extends Pipeline<C, ?, S>> {
 
         default Batch<C, I, List<I>> filterPar(Function<I, Future<Boolean>> predicate) {
             return Batch.of(context(), get().flatMap(items -> {
-                record Pair<K, V>(K key, V value) {}
-                return Future.all(StreamSupport.stream(items.spliterator(), false)
-                                               .map(i -> predicate.apply(i).map(match -> new Pair<>(i, match)))
-                                               .toList()
-                                 ).map(cf -> cf.<Pair<I, Boolean>>list().stream()
-                                               .filter(Pair::value)
-                                               .map(Pair::key)
-                                               .toList());
+                var list = StreamSupport.stream(items.spliterator(), false).toList();
+                var checks = list.stream().map(predicate).toList();
+                return Future.all(checks).map(cf -> {
+                    var results = new ArrayList<I>();
+                    for (int i = 0; i < list.size(); i++) {
+                        if (cf.<Boolean>resultAt(i)) results.add(list.get(i));
+                    }
+                    return results;
+                });
             }));
         }
 
         default Batch<C, I, List<I>> filterParCtx(BiFunction<C, I, Future<Boolean>> predicate) {
             return Batch.of(context(), get().flatMap(items -> {
-                record Pair<K, V>(K key, V value) {}
-                return Future.all(StreamSupport.stream(items.spliterator(), false)
-                                               .map(i -> predicate.apply(context(), i)
-                                                                  .map(match -> new Pair<>(i, match)))
-                                               .toList()
-                                 ).map(cf -> cf.<Pair<I, Boolean>>list().stream()
-                                               .filter(Pair::value)
-                                               .map(Pair::key)
-                                               .toList());
+                var list = StreamSupport.stream(items.spliterator(), false).toList();
+                var checks = list.stream().map(i -> predicate.apply(context(), i)).toList();
+                return Future.all(checks).map(cf -> {
+                    var results = new ArrayList<I>();
+                    for (int i = 0; i < list.size(); i++) {
+                        if (cf.<Boolean>resultAt(i)) results.add(list.get(i));
+                    }
+                    return results;
+                });
             }));
         }
 
@@ -708,12 +712,13 @@ public sealed interface Pipeline<C, T, S extends Pipeline<C, ?, S>> {
     default <I, R extends Iterable<I>> Batch<C, I, R> batch(Function<T, R> map) {
         return Batch.of(context(), get().map(map));
     }
+    //endregion
 
     @FunctionalInterface
     interface TriFunction<T, U, V, R> {
         R apply(T t, U u, V v);
     }
-
+    //region retry
 
     /// retryable
     default <R> Pipeline<C, R, S> retry(Vertx vertx, RetryPolicy policy,
@@ -762,4 +767,441 @@ public sealed interface Pipeline<C, T, S extends Pipeline<C, ?, S>> {
                                    t -> t instanceof java.io.IOException || t.getMessage().contains("timeout"));
         }
     }
+    //endregion
+
+    //region Monadic
+
+    /// blueprint style process pipeline tools
+    @FunctionalInterface
+    interface Monadic<C, I, O> {
+
+        Future<O> process(C context, I input);
+
+        Monadic<?, ?, ?> IDENTITY = (ctx, in) -> Future.succeededFuture(in);
+
+
+        record Base<C, I, O>(BiFunction<C, I, Future<O>> fn) implements Monadic<C, I, O> {
+            @Override
+            public Future<O> process(C context, I input) {
+                return fn.apply(context, input);
+            }
+        }
+
+        record Mapped<C, I, Prev, O>(
+                Monadic<C, I, Prev> upstream,
+                Function<Prev, O> mapper
+        ) implements Monadic<C, I, O> {
+            @Override
+            public Future<O> process(C context, I input) {
+                return upstream.process(context, input).map(mapper);
+            }
+        }
+
+        @SuppressWarnings("unchecked")
+        static <C, T> Monadic<C, T, T> identity() {
+            return (Monadic<C, T, T>) IDENTITY;
+        }
+
+        static <C, I, O> Monadic<C, I, O> from(BiFunction<C, I, Future<O>> func) {
+            return func::apply;
+        }
+
+        @SuppressWarnings("unchecked")
+        @SafeVarargs
+        static <C, I, O> Monadic<C, I, O> race(Monadic<C, I, O>... competitors) {
+            return (ctx, in) -> Future.any(Arrays.stream(competitors)
+                                                 .map(c -> c.process(ctx, in))
+                                                 .toList()).map(cf -> (O) cf.result());
+        }
+
+        default <R> Monadic<C, I, R> map(Function<O, R> mapper) {
+            return new Mapped<>(this, mapper);
+        }
+
+        default <R> Monadic<C, I, R> mapCtx(BiFunction<C, O, R> mapper) {
+            return (ctx, in) -> this.process(ctx, in).map(o -> mapper.apply(ctx, o));
+        }
+
+        default <R> Monadic<C, I, Optional<R>> mapOpt(Function<O, @Nullable R> mapper) {
+            return (ctx, in) -> this.process(ctx, in).map(mapper).map(Optional::ofNullable);
+        }
+
+        default <R> Monadic<C, I, R> flatMap(Function<O, Future<R>> mapper) {
+            return (ctx, in) -> this.process(ctx, in).flatMap(mapper);
+        }
+
+        default <R> Monadic<C, I, R> flatMapCtx(BiFunction<C, O, Future<R>> mapper) {
+            return (ctx, in) -> this.process(ctx, in).flatMap(o -> mapper.apply(ctx, o));
+        }
+
+        default <R> Monadic<C, I, R> andThen(Monadic<C, O, R> next) {
+            return (ctx, in) -> this.process(ctx, in).flatMap(o -> next.process(ctx, o));
+        }
+
+        default Monadic<C, I, O> peek(Consumer<O> action) {
+            return map(v -> {
+                action.accept(v);
+                return v;
+            });
+        }
+
+        default Monadic<C, I, O> peekCtx(BiConsumer<C, O> action) {
+            return mapCtx((ctx, v) -> {
+                action.accept(ctx, v);
+                return v;
+            });
+        }
+
+        default Monadic<C, I, O> guard(Predicate<O> predicate, DomainError error) {
+            return flatMap(v -> predicate.test(v) ? Future.succeededFuture(v) : Future.failedFuture(error));
+        }
+
+        default Monadic<C, I, O> guardCtx(BiPredicate<C, O> predicate, Function<C, DomainError> error) {
+            return (ctx, in) -> this.process(ctx, in)
+                                    .flatMap(v -> predicate.test(ctx, v)
+                                            ? Future.succeededFuture(v)
+                                            : Future.failedFuture(
+                                            error.apply(ctx)));
+        }
+
+        default Monadic<C, I, O> recover(Function<Throwable, O> fallback) {
+            return (ctx, in) -> this.process(ctx, in).recover(err -> Future.succeededFuture(fallback.apply(err)));
+        }
+
+        default <E extends Throwable> Monadic<C, I, O> recover(Class<E> errorType, Function<E, O> fallback) {
+            return (ctx, in) -> this.process(ctx, in).recover(err -> {
+                if (errorType.isInstance(err)) return Future.succeededFuture(fallback.apply(errorType.cast(err)));
+                return Future.failedFuture(err);
+            });
+        }
+
+        default <E extends Throwable> Monadic<C, I, O> recoverCtx(Class<E> errorType, BiFunction<C, E, O> fallback) {
+            return (ctx, in) -> this.process(ctx, in).recover(err -> {
+                if (errorType.isInstance(err)) {
+                    return Future.succeededFuture(fallback.apply(ctx, errorType.cast(err)));
+                }
+                return Future.failedFuture(err);
+            });
+        }
+
+        default Monadic<C, I, O> recover(Predicate<Throwable> errorType, Function<Throwable, O> fallback) {
+            return (ctx, in) -> this.process(ctx, in).recover(err -> {
+                if (errorType.test(err)) {
+                    return Future.succeededFuture(fallback.apply(err));
+                }
+                return Future.failedFuture(err);
+            });
+        }
+
+        default Monadic<C, I, O> recoverCtx(BiPredicate<C, Throwable> errorType, BiFunction<C, Throwable, O> fallback) {
+            return (ctx, in) -> this.process(ctx, in).recover(err -> {
+                if (errorType.test(ctx, err)) {
+                    return Future.succeededFuture(fallback.apply(ctx, err));
+                }
+                return Future.failedFuture(err);
+            });
+        }
+
+        default Monadic<C, I, O> timeout(long amount, TimeUnit unit) {
+            return (ctx, in) -> this.process(ctx, in).timeout(amount, unit);
+        }
+
+        default <R> Monadic<C, I, R> blocking(Vertx vertx, Function<O, R> handler) {
+            return (ctx, in) -> this.process(ctx, in)
+                                    .flatMap(o -> vertx.executeBlocking(() -> handler.apply(o)));
+        }
+
+        default <R> Monadic<C, I, R> blockingCtx(Vertx vertx, BiFunction<C, O, R> handler) {
+            return (ctx, in) -> this.process(ctx, in)
+                                    .flatMap(out -> vertx.executeBlocking(() -> handler.apply(ctx, out)));
+        }
+
+        default Monadic<C, I, O> retry(Vertx vertx, RetryPolicy policy) {
+            return (ctx, in) -> executeRetry(vertx, policy, () -> this.process(ctx, in), 1, policy.initialDelayMs());
+        }
+
+        default <U, R> Monadic<C, I, R> zipPar(Monadic<C, I, U> other, BiFunction<O, U, R> combiner) {
+            return (ctx, in) -> Future.all(this.process(ctx, in), other.process(ctx, in))
+                                      .map(cf -> combiner.apply(cf.resultAt(0), cf.resultAt(1)));
+        }
+
+        default <U, R> Monadic<C, I, R> zipParCtx(Monadic<C, I, U> other, TriFunction<C, O, U, R> combiner) {
+            return (ctx, in) -> Future.all(this.process(ctx, in), other.process(ctx, in))
+                                      .map(cf -> combiner.apply(ctx, cf.resultAt(0), cf.resultAt(1)));
+        }
+
+        default <C2> Monadic<C2, I, O> withContext(Function<C2, C> contextBackMapper) {
+            return (context2, input) -> {
+                C context1 = contextBackMapper.apply(context2);
+                return this.process(context1, input);
+            };
+        }
+
+        default Monadic<C, I, O> sticky(Vertx vertx) {
+            return (ctx, in) -> this.process(ctx, in).flatMap(v -> {
+                Promise<O> promise = Promise.promise();
+                vertx.getOrCreateContext().runOnContext(x -> promise.complete(v));
+                return promise.future();
+            });
+        }
+
+        default <R> Monadic<C, I, R> fold(Function<Throwable, R> onFailure, Function<O, R> onSuccess) {
+            return (ctx, in) -> this.process(ctx, in)
+                                    .map(onSuccess)
+                                    .recover(err -> Future.succeededFuture(onFailure.apply(err)));
+        }
+
+        default <R> Monadic<C, I, R> withBreaker(CircuitBreaker breaker, Function<O, Future<R>> action) {
+            return (ctx, in) -> this.process(ctx, in)
+                                    .flatMap(val -> breaker.execute(p -> action.apply(val).onComplete(p)));
+        }
+
+        @SuppressWarnings("unchecked")
+        default Monadic<C, I, O> race(Function<O, Future<O>>... competitors) {
+            return (ctx, in) -> this.process(ctx, in)
+                                    .flatMap(val -> Future.any(Arrays.stream(competitors)
+                                                                     .map(c -> c.apply(val))
+                                                                     .toList()).map(cf -> (O) cf.result()));
+        }
+
+        @SuppressWarnings("unchecked")
+        default Monadic<C, I, O> raceCtx(BiFunction<C, O, Future<O>>... competitors) {
+            return (ctx, in) -> this.process(ctx, in)
+                                    .flatMap(val -> Future.any(Arrays.stream(competitors)
+                                                                     .map(c -> c.apply(ctx, val))
+                                                                     .toList()).map(cf -> (O) cf.result()));
+        }
+
+        @SuppressWarnings("unchecked")
+        default Monadic<C, I, O> raceWith(Monadic<C, I, O> other) {
+            return (ctx, in) -> Future.any(this.process(ctx, in), other.process(ctx, in))
+                                      .map(cf -> (O) cf.resultAt(0));
+        }
+
+        default <E, X extends Iterable<E>> Batch<C, I, E, X> asBatch(Function<O, X> splitter) {
+            return (ctx, in) -> this.process(ctx, in).map(splitter);
+        }
+
+        interface Batch<C, I, E, T extends Iterable<E>> {
+            Future<T> process(C context, I input);
+
+            default <C2> Batch<C2, I, E, T> withContext(Function<C2, C> contextBackMapper) {
+                return (ctx2, in) -> this.process(contextBackMapper.apply(ctx2), in);
+            }
+
+            static <C, I, E, T extends Iterable<E>> Batch<C, I, E, T> from(Monadic<C, I, T> pipe) {
+                return pipe::process;
+            }
+
+            default <R> Batch<C, I, R, List<R>> mapEach(Function<E, R> mapper) {
+                return (ctx, in) -> this.process(ctx, in).map(items ->
+                                                                      StreamSupport.stream(items.spliterator(), false)
+                                                                                   .map(mapper).toList());
+            }
+
+            default <R> Batch<C, I, R, List<R>> mapEachCtx(BiFunction<C, E, R> mapper) {
+                return (ctx, in) -> this.process(ctx, in)
+                                        .map(items -> StreamSupport
+                                                .stream(items.spliterator(), false)
+                                                .map(i -> mapper.apply(ctx, i)).toList());
+            }
+
+            default <R> Batch<C, I, R, List<R>> mapEachPar(Function<E, Future<R>> mapper) {
+                return (ctx, in) -> this.process(ctx, in)
+                                        .flatMap(items -> Future
+                                                         .all(StreamSupport
+                                                                      .stream(items.spliterator(), false)
+                                                                      .map(mapper)
+                                                                      .toList())
+                                                         .map(cf -> cf.list())
+                                                );
+            }
+
+            default <R> Batch<C, I, R, List<R>> mapEachParCtx(BiFunction<C, E, Future<R>> mapper) {
+                return (ctx, in) -> this.process(ctx, in)
+                                        .flatMap(items -> Future
+                                                         .all(StreamSupport
+                                                                      .stream(items.spliterator(), false)
+                                                                      .map(i -> mapper.apply(ctx, i))
+                                                                      .toList())
+                                                         .map(CompositeFuture::list)
+                                                );
+            }
+
+            default <R> Batch<C, I, R, List<R>> mapEachPar(int concurrency, Function<E, Future<R>> mapper) {
+                return (ctx, in) -> this.process(ctx, in).flatMap(items ->
+                                                                          mapParallel(items, concurrency, mapper));
+            }
+
+            default <R> Batch<C, I, R, List<R>> mapEachParCtx(int concurrency, BiFunction<C, E, Future<R>> mapper) {
+                return (ctx, in) -> this.process(ctx, in)
+                                        .flatMap(items -> mapParallel(items, concurrency, i -> mapper.apply(ctx, i)));
+            }
+
+            default Batch<C, I, E, List<E>> filter(Predicate<E> predicate) {
+                return (ctx, in) -> this.process(ctx, in).map(items ->
+                                                                      StreamSupport.stream(items.spliterator(), false)
+                                                                                   .filter(predicate).toList());
+            }
+
+            default Batch<C, I, E, List<E>> filterCtx(BiPredicate<C, E> predicate) {
+                return (ctx, in) -> this.process(ctx, in)
+                                        .map(items -> StreamSupport
+                                                .stream(items.spliterator(), false)
+                                                .filter(item -> predicate.test(ctx, item))
+                                                .toList()
+                                            );
+            }
+
+            default Batch<C, I, E, List<E>> filterPar(Function<E, Future<Boolean>> predicate) {
+                return (ctx, in) -> this.process(ctx, in).flatMap(items -> {
+                    var list = StreamSupport.stream(items.spliterator(), false).toList();
+                    var checks = list.stream().map(predicate).toList();
+                    return Future.all(checks).map(cf -> {
+                        var results = new java.util.ArrayList<E>();
+                        for (int i = 0; i < list.size(); i++) {
+                            if (cf.<Boolean>resultAt(i)) results.add(list.get(i));
+                        }
+                        return results;
+                    });
+                });
+            }
+
+            default Batch<C, I, E, List<E>> filterParCtx(BiFunction<C, E, Future<Boolean>> predicate) {
+                return (ctx, in) -> this.process(ctx, in).flatMap(items -> {
+                    var list = StreamSupport.stream(items.spliterator(), false).toList();
+                    var checks = list.stream().map(i -> predicate.apply(ctx, i)).toList();
+                    return Future.all(checks).map(cf -> {
+                        var results = new java.util.ArrayList<E>();
+                        for (int i = 0; i < list.size(); i++) {
+                            if (cf.<Boolean>resultAt(i)) results.add(list.get(i));
+                        }
+                        return results;
+                    });
+                });
+            }
+
+            default <K> Monadic<C, I, Map<K, List<E>>> group(Function<E, K> classifier) {
+                return (ctx, in) -> this.process(ctx, in).map(items ->
+                                                                      StreamSupport.stream(items.spliterator(), false)
+                                                                                   .collect(Collectors.groupingBy(
+                                                                                           classifier)));
+            }
+
+            default <K> Monadic<C, I, Map<K, List<E>>> groupCtx(BiFunction<C, E, K> classifier) {
+                return (ctx, in) -> this.process(ctx, in)
+                                        .map(items -> StreamSupport
+                                                .stream(items.spliterator(), false)
+                                                .collect(Collectors.groupingBy(
+                                                        i -> classifier.apply(ctx, i))));
+            }
+
+            default <K, V> Monadic<C, I, Map<K, List<V>>> group(Function<E, K> classifier, Function<E, V> valueMapper) {
+                return (ctx, in) -> this.process(ctx, in)
+                                        .map(items -> StreamSupport
+                                                .stream(items.spliterator(), false)
+                                                .collect(Collectors.groupingBy(classifier,
+                                                                               Collectors.mapping(valueMapper,
+                                                                                                  Collectors.toList())))
+                                            );
+            }
+
+            default <K, V> Monadic<C, I, Map<K, List<V>>> groupCtx(BiFunction<C, E, K> classifier,
+                                                                   BiFunction<C, E, V> valueMapper) {
+                return (ctx, in) -> this.process(ctx, in)
+                                        .map(items -> StreamSupport
+                                                .stream(items.spliterator(), false)
+                                                .collect(Collectors
+                                                                 .groupingBy(i -> classifier.apply(ctx, i),
+                                                                             Collectors.mapping(
+                                                                                     i -> valueMapper.apply(ctx, i),
+                                                                                     Collectors.toList())))
+                                            );
+            }
+
+            default <K, V> Monadic<C, I, Map<K, List<V>>> groupPar(Function<E, Future<Map.Entry<K, V>>> asyncMapper) {
+                return (ctx, in) -> this.process(ctx, in)
+                                        .flatMap(items -> Future.all(StreamSupport
+                                                                             .stream(items.spliterator(), false)
+                                                                             .map(asyncMapper)
+                                                                             .toList())
+                                                                .map(cf -> {
+                                                                    Map<K, List<V>> result = new HashMap<>();
+                                                                    for (int i = 0; i < cf.size(); i++) {
+                                                                        Map.Entry<K, V> entry = cf.resultAt(i);
+                                                                        result.computeIfAbsent(entry.getKey(),
+                                                                                               k -> new ArrayList<>())
+                                                                              .add(entry.getValue());
+                                                                    }
+                                                                    return result;
+                                                                }));
+            }
+
+            default <K, V> Monadic<C, I, Map<K, List<V>>> groupParCtx(
+                    BiFunction<C, E, Future<Map.Entry<K, V>>> asyncMapper) {
+                return (ctx, in) -> this.process(ctx, in)
+                                        .flatMap(items -> Future.all(StreamSupport
+                                                                             .stream(items.spliterator(), false)
+                                                                             .map(i -> asyncMapper.apply(ctx, i))
+                                                                             .toList())
+                                                                .map(cf -> {
+                                                                    Map<K, List<V>> result = new HashMap<>();
+                                                                    for (int i = 0; i < cf.size(); i++) {
+                                                                        Map.Entry<K, V> entry = cf.resultAt(i);
+                                                                        result.computeIfAbsent(entry.getKey(),
+                                                                                               k -> new ArrayList<>())
+                                                                              .add(entry.getValue());
+                                                                    }
+                                                                    return result;
+                                                                }));
+            }
+
+            default <R> Monadic<C, I, R> reduce(R identity, BiFunction<R, E, R> accumulator) {
+                return (ctx, in) -> this.process(ctx, in).map(items ->
+                                                                      StreamSupport.stream(items.spliterator(), false)
+                                                                                   .reduce(identity, accumulator,
+                                                                                           (a, b) -> a));
+            }
+
+            default <R> Monadic<C, I, R> reduceCtx(R identity, TriFunction<C, R, E, R> accumulator) {
+                return (ctx, in) -> this.process(ctx, in).map(items ->
+                                                                      StreamSupport.stream(items.spliterator(), false)
+                                                                                   .reduce(identity,
+                                                                                           (res, item) -> accumulator.apply(
+                                                                                                   ctx, res, item),
+                                                                                           (a, b) -> a));
+            }
+
+
+            private static <E, R> Future<List<R>> mapParallel(Iterable<E> items, int concurrency,
+                                                              Function<E, Future<R>> mapper) {
+                List<E> list = StreamSupport.stream(items.spliterator(), false).toList();
+                if (list.isEmpty()) return Future.succeededFuture(List.of());
+
+                Promise<List<R>> promise = Promise.promise();
+                AtomicInteger nextIndex = new AtomicInteger(0);
+                AtomicInteger remaining = new AtomicInteger(list.size());
+                @SuppressWarnings("unchecked")
+                R[] results = (R[]) new Object[list.size()];
+
+                Runnable worker = new Runnable() {
+                    @Override
+                    public void run() {
+                        int i = nextIndex.getAndIncrement();
+                        if (i >= list.size() || promise.future().isComplete()) return;
+                        mapper.apply(list.get(i)).onComplete(ar -> {
+                            if (ar.succeeded()) {
+                                results[i] = ar.result();
+                                if (remaining.decrementAndGet() == 0) promise.tryComplete(Arrays.asList(results));
+                                else this.run();
+                            } else promise.tryFail(ar.cause());
+                        });
+                    }
+                };
+                for (int i = 0; i < Math.min(concurrency, list.size()); i++) worker.run();
+                return promise.future();
+            }
+        }
+    }
+    //endregion
 }
