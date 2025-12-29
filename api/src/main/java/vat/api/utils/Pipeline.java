@@ -12,6 +12,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 ///  Pipeline tools
@@ -779,23 +780,6 @@ public sealed interface Pipeline<C, T, S extends Pipeline<C, ?, S>> {
         Monadic<?, ?, ?> IDENTITY = (ctx, in) -> Future.succeededFuture(in);
 
 
-        record Base<C, I, O>(BiFunction<C, I, Future<O>> fn) implements Monadic<C, I, O> {
-            @Override
-            public Future<O> process(C context, I input) {
-                return fn.apply(context, input);
-            }
-        }
-
-        record Mapped<C, I, Prev, O>(
-                Monadic<C, I, Prev> upstream,
-                Function<Prev, O> mapper
-        ) implements Monadic<C, I, O> {
-            @Override
-            public Future<O> process(C context, I input) {
-                return upstream.process(context, input).map(mapper);
-            }
-        }
-
         @SuppressWarnings("unchecked")
         static <C, T> Monadic<C, T, T> identity() {
             return (Monadic<C, T, T>) IDENTITY;
@@ -805,36 +789,40 @@ public sealed interface Pipeline<C, T, S extends Pipeline<C, ?, S>> {
             return func::apply;
         }
 
-        @SuppressWarnings("unchecked")
-        @SafeVarargs
-        static <C, I, O> Monadic<C, I, O> race(Monadic<C, I, O>... competitors) {
-            return (ctx, in) -> Future.any(Arrays.stream(competitors)
-                                                 .map(c -> c.process(ctx, in))
-                                                 .toList()).map(cf -> (O) cf.result());
-        }
 
         default <R> Monadic<C, I, R> map(Function<O, R> mapper) {
-            return new Mapped<>(this, mapper);
+            return flatMap(o -> Future.succeededFuture(mapper.apply(o)));
         }
 
         default <R> Monadic<C, I, R> mapCtx(BiFunction<C, O, R> mapper) {
-            return (ctx, in) -> this.process(ctx, in).map(o -> mapper.apply(ctx, o));
+            return flatMapCtx((c, i) -> Future.succeededFuture(mapper.apply(c, i)));
         }
 
         default <R> Monadic<C, I, Optional<R>> mapOpt(Function<O, @Nullable R> mapper) {
-            return (ctx, in) -> this.process(ctx, in).map(mapper).map(Optional::ofNullable);
+            return map(mapper).map(Optional::ofNullable);
+        }
+
+        default <R> Monadic<C, I, Optional<R>> mapOptCtx(BiFunction<C, O, @Nullable R> mapper) {
+            return mapCtx(mapper).map(Optional::ofNullable);
         }
 
         default <R> Monadic<C, I, R> flatMap(Function<O, Future<R>> mapper) {
-            return (ctx, in) -> this.process(ctx, in).flatMap(mapper);
+            return flatMapCtx((ctx, o) -> mapper.apply(o));
         }
 
+        @SuppressWarnings("unchecked")
         default <R> Monadic<C, I, R> flatMapCtx(BiFunction<C, O, Future<R>> mapper) {
-            return (ctx, in) -> this.process(ctx, in).flatMap(o -> mapper.apply(ctx, o));
+            var steps = new LinkedList<Steps.Step<C, Object, Object>>();
+            // Add current process as first step
+            steps.add((c, ar) -> {
+                if (ar.failed()) return Future.failedFuture(ar.cause());
+                return (Future<Object>) this.process(c, (I) ar.result());
+            });
+            return new Steps<C, I, O>(steps).append(mapper);
         }
 
         default <R> Monadic<C, I, R> andThen(Monadic<C, O, R> next) {
-            return (ctx, in) -> this.process(ctx, in).flatMap(o -> next.process(ctx, o));
+            return flatMapCtx(next::process);
         }
 
         default Monadic<C, I, O> peek(Consumer<O> action) {
@@ -856,46 +844,53 @@ public sealed interface Pipeline<C, T, S extends Pipeline<C, ?, S>> {
         }
 
         default Monadic<C, I, O> guardCtx(BiPredicate<C, O> predicate, Function<C, DomainError> error) {
-            return (ctx, in) -> this.process(ctx, in)
-                                    .flatMap(v -> predicate.test(ctx, v)
-                                            ? Future.succeededFuture(v)
-                                            : Future.failedFuture(
-                                            error.apply(ctx)));
+            return flatMapCtx((ctx, v) -> predicate.test(ctx, v)
+                    ? Future.succeededFuture(v)
+                    : Future.failedFuture(error.apply(ctx)));
         }
 
-        default Monadic<C, I, O> recover(Function<Throwable, O> fallback) {
-            return (ctx, in) -> this.process(ctx, in).recover(err -> Future.succeededFuture(fallback.apply(err)));
+        default Monadic<C, I, O> recover(Function<Throwable, Future<O>> fallback) {
+            return recoverCtx((ctx, err) -> fallback.apply(err));
         }
 
-        default <E extends Throwable> Monadic<C, I, O> recover(Class<E> errorType, Function<E, O> fallback) {
-            return (ctx, in) -> this.process(ctx, in).recover(err -> {
-                if (errorType.isInstance(err)) return Future.succeededFuture(fallback.apply(errorType.cast(err)));
+        default Monadic<C, I, O> recoverCtx(BiFunction<C, Throwable, Future<O>> fallback) {
+            if (this instanceof Monadic.Steps<C, I, O> currentChain) {
+                return currentChain.appendRecover(fallback);
+            }
+            return Monadic.<C, I>identity()
+                          .andThen(this)
+                          .recoverCtx(fallback);
+        }
+
+        default <E extends Throwable> Monadic<C, I, O> recover(Class<E> errorType, Function<E, Future<O>> fallback) {
+            return recover(err -> {
+                if (errorType.isInstance(err)) return fallback.apply(errorType.cast(err));
                 return Future.failedFuture(err);
             });
         }
 
-        default <E extends Throwable> Monadic<C, I, O> recoverCtx(Class<E> errorType, BiFunction<C, E, O> fallback) {
-            return (ctx, in) -> this.process(ctx, in).recover(err -> {
-                if (errorType.isInstance(err)) {
-                    return Future.succeededFuture(fallback.apply(ctx, errorType.cast(err)));
-                }
-                return Future.failedFuture(err);
+        default <E extends Throwable> Monadic<C, I, O> recoverCtx(Class<E> errorType,
+                                                                  BiFunction<C, E, Future<O>> fallback) {
+            return recoverCtx((c, e) -> {
+                if (errorType.isInstance(e)) return fallback.apply(c, errorType.cast(e));
+                return Future.failedFuture(e);
             });
         }
 
-        default Monadic<C, I, O> recover(Predicate<Throwable> errorType, Function<Throwable, O> fallback) {
-            return (ctx, in) -> this.process(ctx, in).recover(err -> {
+        default Monadic<C, I, O> recover(Predicate<Throwable> errorType, Function<Throwable, Future<O>> fallback) {
+            return recoverCtx((ctx, err) -> {
                 if (errorType.test(err)) {
-                    return Future.succeededFuture(fallback.apply(err));
+                    return fallback.apply(err);
                 }
                 return Future.failedFuture(err);
             });
         }
 
-        default Monadic<C, I, O> recoverCtx(BiPredicate<C, Throwable> errorType, BiFunction<C, Throwable, O> fallback) {
-            return (ctx, in) -> this.process(ctx, in).recover(err -> {
+        default Monadic<C, I, O> recoverCtx(BiPredicate<C, Throwable> errorType,
+                                            BiFunction<C, Throwable, Future<O>> fallback) {
+            return recoverCtx((ctx, err) -> {
                 if (errorType.test(ctx, err)) {
-                    return Future.succeededFuture(fallback.apply(ctx, err));
+                    return fallback.apply(ctx, err);
                 }
                 return Future.failedFuture(err);
             });
@@ -906,13 +901,11 @@ public sealed interface Pipeline<C, T, S extends Pipeline<C, ?, S>> {
         }
 
         default <R> Monadic<C, I, R> blocking(Vertx vertx, Function<O, R> handler) {
-            return (ctx, in) -> this.process(ctx, in)
-                                    .flatMap(o -> vertx.executeBlocking(() -> handler.apply(o)));
+            return flatMap(o -> vertx.executeBlocking(() -> handler.apply(o)));
         }
 
         default <R> Monadic<C, I, R> blockingCtx(Vertx vertx, BiFunction<C, O, R> handler) {
-            return (ctx, in) -> this.process(ctx, in)
-                                    .flatMap(out -> vertx.executeBlocking(() -> handler.apply(ctx, out)));
+            return flatMapCtx((ctx, out) -> vertx.executeBlocking(() -> handler.apply(ctx, out)));
         }
 
         default Monadic<C, I, O> retry(Vertx vertx, RetryPolicy policy) {
@@ -937,7 +930,7 @@ public sealed interface Pipeline<C, T, S extends Pipeline<C, ?, S>> {
         }
 
         default Monadic<C, I, O> sticky(Vertx vertx) {
-            return (ctx, in) -> this.process(ctx, in).flatMap(v -> {
+            return flatMap(v -> {
                 Promise<O> promise = Promise.promise();
                 vertx.getOrCreateContext().runOnContext(x -> promise.complete(v));
                 return promise.future();
@@ -945,36 +938,40 @@ public sealed interface Pipeline<C, T, S extends Pipeline<C, ?, S>> {
         }
 
         default <R> Monadic<C, I, R> fold(Function<Throwable, R> onFailure, Function<O, R> onSuccess) {
-            return (ctx, in) -> this.process(ctx, in)
-                                    .map(onSuccess)
-                                    .recover(err -> Future.succeededFuture(onFailure.apply(err)));
+            return
+                    map(onSuccess)
+                            .recover(err -> Future.succeededFuture(onFailure.apply(err)));
         }
 
         default <R> Monadic<C, I, R> withBreaker(CircuitBreaker breaker, Function<O, Future<R>> action) {
-            return (ctx, in) -> this.process(ctx, in)
-                                    .flatMap(val -> breaker.execute(p -> action.apply(val).onComplete(p)));
+            return flatMap(val -> breaker.execute(p -> action.apply(val).onComplete(p)));
         }
 
         @SuppressWarnings("unchecked")
-        default Monadic<C, I, O> race(Function<O, Future<O>>... competitors) {
-            return (ctx, in) -> this.process(ctx, in)
-                                    .flatMap(val -> Future.any(Arrays.stream(competitors)
-                                                                     .map(c -> c.apply(val))
-                                                                     .toList()).map(cf -> (O) cf.result()));
+        default Monadic<C, I, O> race(Function<I, Future<O>>... competitors) {
+            return (ctx, in) -> Future.any(Stream
+                                                   .concat(Arrays
+                                                                   .stream(competitors)
+                                                                   .map(c -> c.apply(in)),
+                                                           Stream.of(this.process(ctx, in)))
+                                                   .toList())
+                                      .map(cf -> cf.resultAt(0));
         }
 
         @SuppressWarnings("unchecked")
-        default Monadic<C, I, O> raceCtx(BiFunction<C, O, Future<O>>... competitors) {
-            return (ctx, in) -> this.process(ctx, in)
-                                    .flatMap(val -> Future.any(Arrays.stream(competitors)
-                                                                     .map(c -> c.apply(ctx, val))
-                                                                     .toList()).map(cf -> (O) cf.result()));
+        default Monadic<C, I, O> raceCtx(BiFunction<C, I, Future<O>>... competitors) {
+            return (ctx, in) -> Future.any(Stream.concat(Arrays
+                                                                 .stream(competitors)
+                                                                 .map(c -> c.apply(ctx, in)),
+                                                         Stream.of(this.process(ctx, in)))
+                                                 .toList())
+                                      .map(cf -> cf.resultAt(0));
         }
 
-        @SuppressWarnings("unchecked")
+
         default Monadic<C, I, O> raceWith(Monadic<C, I, O> other) {
             return (ctx, in) -> Future.any(this.process(ctx, in), other.process(ctx, in))
-                                      .map(cf -> (O) cf.resultAt(0));
+                                      .map(cf -> cf.resultAt(0));
         }
 
         default <E, X extends Iterable<E>> Batch<C, I, E, X> asBatch(Function<O, X> splitter) {
@@ -1144,23 +1141,89 @@ public sealed interface Pipeline<C, T, S extends Pipeline<C, ?, S>> {
                 AtomicInteger remaining = new AtomicInteger(list.size());
                 @SuppressWarnings("unchecked")
                 R[] results = (R[]) new Object[list.size()];
-
-                Runnable worker = new Runnable() {
+                var worker = new Runnable() {
                     @Override
                     public void run() {
-                        int i = nextIndex.getAndIncrement();
-                        if (i >= list.size() || promise.future().isComplete()) return;
-                        mapper.apply(list.get(i)).onComplete(ar -> {
-                            if (ar.succeeded()) {
-                                results[i] = ar.result();
-                                if (remaining.decrementAndGet() == 0) promise.tryComplete(Arrays.asList(results));
-                                else this.run();
-                            } else promise.tryFail(ar.cause());
-                        });
+                        // Loop as long as we have items and the promise isn't done
+                        while (!promise.future().isComplete()) {
+                            int i = nextIndex.getAndIncrement();
+                            if (i >= list.size()) return; // No more work
+                            Future<R> fut;
+                            try {
+                                fut = mapper.apply(list.get(i));
+                            } catch (Throwable t) {
+                                promise.tryFail(t);
+                                return;
+                            }
+                            if (fut.isComplete()) {
+                                // FAST PATH: Handle synchronous completion without recursion
+                                if (fut.succeeded()) {
+                                    results[i] = fut.result();
+                                    if (remaining.decrementAndGet() == 0) {
+                                        promise.tryComplete(Arrays.asList(results));
+                                        return;
+                                    }
+                                    // Continue loop to pick up next item immediately
+                                } else {
+                                    promise.tryFail(fut.cause());
+                                    return;
+                                }
+                            } else {
+                                // ASYNC PATH: Register callback
+                                fut.onComplete(ar -> {
+                                    if (ar.succeeded()) {
+                                        results[i] = ar.result();
+                                        if (remaining.decrementAndGet() == 0) {
+                                            promise.tryComplete(Arrays.asList(results));
+                                        } else {
+                                            // Resume work on this thread
+                                            this.run();
+                                        }
+                                    } else {
+                                        promise.tryFail(ar.cause());
+                                    }
+                                });
+                                // Break the loop, the callback will resume execution
+                                return;
+                            }
+                        }
                     }
                 };
-                for (int i = 0; i < Math.min(concurrency, list.size()); i++) worker.run();
+                int actualConcurrency = Math.min(concurrency, list.size());
+                for (int i = 0; i < actualConcurrency; i++) worker.run();
                 return promise.future();
+            }
+        }
+
+        record Steps<C, I, O>(List<Step<C, Object, Object>> steps) implements Monadic<C, I, O> {
+            interface Step<C, I, O> extends BiFunction<C, AsyncResult<I>, Future<O>> {}
+
+            @Override
+            @SuppressWarnings("unchecked")
+            public Future<O> process(C context, I input) {
+                Future<Object> current = Future.succeededFuture(input);
+                for (var step : steps) {
+                    current = current.transform(val -> step.apply(context, val));
+                }
+                return (Future<O>) current;
+            }
+
+            @SuppressWarnings("unchecked")
+            public <NextO> Steps<C, I, NextO> append(BiFunction<C, O, Future<NextO>> next) {
+                var newSteps = new LinkedList<>(steps);
+                newSteps.add((ctx, in) -> in.succeeded() ? (Future<Object>) next.apply(ctx,
+                                                                                       (O) in.result()) : Future.failedFuture(
+                        in.cause()));
+                return new Steps<>(newSteps);
+            }
+
+            @SuppressWarnings("unchecked")
+            public <NextO> Steps<C, I, NextO> appendRecover(BiFunction<C, Throwable, Future<NextO>> recovery) {
+                var newSteps = new LinkedList<>(steps);
+                newSteps.add((ctx, ar) -> ar.failed() ? (Future<Object>) recovery.apply(ctx,
+                                                                                        ar.cause()) : Future.succeededFuture(
+                        ar.result()));
+                return new Steps<>(newSteps);
             }
         }
     }
