@@ -3,6 +3,7 @@ package vat.api.store;
 import io.vertx.core.Future;
 import io.vertx.core.json.JsonObject;
 import org.jooq.lambda.tuple.*;
+import org.jspecify.annotations.Nullable;
 
 import java.util.List;
 import java.util.Optional;
@@ -18,7 +19,7 @@ public sealed interface Stages {
 
     non-sealed interface Store<T> extends vat.api.Store<T>, Stages, Joiner<T>, Inserted<T> {
         /// actor should the ID of actor or null
-        default Store<T> withActor(Object actor) {
+        default Store<T> withActor(@Nullable Object actor) {
             status().withActor(actor);
             return this;
         }

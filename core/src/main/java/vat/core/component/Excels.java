@@ -13,10 +13,12 @@ import org.dhatim.fastexcel.Workbook;
 import org.dhatim.fastexcel.Worksheet;
 import org.dhatim.fastexcel.reader.ReadableWorkbook;
 import org.dhatim.fastexcel.reader.Row;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.NullUnmarked;
+import org.jspecify.annotations.Nullable;
 import vat.api.Data;
 import vat.api.implement.Codec;
 import vat.api.implement.CommonCodec;
-import vat.api.meta.Nullable;
 import vat.api.utils.BufferInputStream;
 import vat.api.utils.BufferOutputStream;
 import vat.api.utils.Fn;
@@ -32,7 +34,7 @@ import java.util.stream.IntStream;
 ///
 /// @author Zen.Liu
 /// @since 2025-11-17
-
+@SuppressWarnings("unused")
 
 public interface Excels {
     String MIME_OPEN_EXCEL = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
@@ -141,6 +143,7 @@ public interface Excels {
 
 
     /// Both FastExcel and FastExcel reader are required.
+
     interface ExcelReader<T> {
         Optional<T> get(Row row, int col);
 
@@ -220,7 +223,7 @@ public interface Excels {
         ExcelReader<String> RAW = Row::getCellRawValue;
         ExcelReader<String> STRING = Row::getCellAsString;
 
-        static boolean parseBoolean(String v) {
+        static boolean parseBoolean(@Nullable String v) {
             if (v == null || v.isBlank()) return false;
             v = v.trim();
             if (v.equalsIgnoreCase("true")) return true;
@@ -271,8 +274,9 @@ public interface Excels {
                 @With String sheet,
                 @With int index,
                 @With int skipRows,
-                List<Property<?>> properties,
+                 List<Property<?>> properties,
                 Function<JsonObject, T> creator) implements SheetData<T> {
+            @NullUnmarked
             public static class SheetReaderBuilder<T extends Data> {
                 public SheetReaderBuilder<T> property(UnaryOperator<Property.PropertyBuilder<?>> prop) {
                     var op = new ArrayList<>(properties == null ? List.of() : properties);
@@ -298,7 +302,7 @@ public interface Excels {
                 @With int index,
                 ExcelReader<T> reader,
                 Codec.DataProperty<T> codec,
-                @With T defaultValue
+                @Nullable @With T defaultValue
         ) implements PropertyData<T> {
 
             public static class PropertyBuilder<T> {
@@ -310,7 +314,7 @@ public interface Excels {
         }
 
         interface PropertyFactory<T> {
-            Property<T> apply(String name, int index, T defaultValue);
+            Property<T> apply(String name, int index, @Nullable T defaultValue);
 
             default Property<T> apply(String name, int index) {
                 return apply(name, index, null);
@@ -343,7 +347,7 @@ public interface Excels {
             ws.range(0, 0, rows, headers.size() - 1).createTable(headers.toArray(new String[0])).styleInfo().setStyleName(tableStyle.code);
         }
 
-        void set(Worksheet sheet, int row, int column, T v);
+        void set(Worksheet sheet, int row, int column, @Nullable T v);
 
         default <R> ExcelWriter<R> mapWriter(Function<R, T> mapper) {
             return (s, r, i, v) -> {
@@ -364,7 +368,7 @@ public interface Excels {
                 AFTER_WORKBOOK;
 
                 public static Stage check(
-                        Workbook wb,
+                        @Nullable Workbook wb,
                         @Nullable Worksheet ws,
                         boolean wrote,
                         @Nullable SheetsData sheets,
@@ -539,7 +543,7 @@ public interface Excels {
             }
 
             @SuppressWarnings({"rawtypes", "unchecked"})
-            default Future<Buffer> writeFuture(Vertx vertx, Function<? super SheetData<?>, Future<List<?>>> values) {
+            default Future<Buffer> writeFuture(Vertx vertx, Function<SheetData<?>, Future<List<?>>> values) {
                 var out = Buffer.buffer();
                 var os = new BufferOutputStream(out);
                 var wb = new Workbook(os, APPLICATION.get(), VERSION.get());
@@ -547,11 +551,11 @@ public interface Excels {
                                 .stream()
                                 .<Future<Void>>map(x -> values
                                         .apply(x)
-                                        .<Void>flatMap(vx -> x.writeData(vertx, (List) vx, wb))
+                                        .flatMap(vx -> x.writeData(vertx, (List) vx, wb))
                                 )
                                 .toList()
                         )
-                        .mapEmpty()
+                        .<Void>mapEmpty()
                         .eventually(() -> Future.future(p -> {
                             closer(wb, os);
                             p.complete();
@@ -637,7 +641,7 @@ public interface Excels {
             }
 
             @SneakyThrows
-            default Future<Void> writeData(Vertx vertx, List<T> values, Workbook wb) {
+            default Future<@Nullable Void> writeData(Vertx vertx, List<T> values, Workbook wb) {
                 return vertx.executeBlocking(() -> {
                     writeData(values, wb);
                     return null;
@@ -698,12 +702,12 @@ public interface Excels {
                 @With int index,
                 @With boolean title,
                 Styler styler,
-                List<Property<?>> properties) implements SheetData<T> {
+                @Nullable List<Property<?>> properties) implements SheetData<T> {
 
             public static class SheetWriterBuilder<T extends Data> {
                 public SheetWriterBuilder<T> property(UnaryOperator<Property.PropertyBuilder<?>> prop) {
                     var op = new ArrayList<>(properties == null ? List.of() : properties);
-                    op.add(prop.apply(Property.builder().index(properties.size())).build());
+                    op.add(prop.apply(Property.builder().index(properties == null ? 0 : properties.size())).build());
                     return properties(op);
                 }
 
@@ -729,11 +733,11 @@ public interface Excels {
         @Builder
         record Sheets(
                 Styler styler,
-                List<SheetWriter<?>> sheets
+               List<SheetWriter<?>> sheets
         ) implements SheetsData {
-
+            @NullUnmarked
             public static class SheetsBuilder {
-                <T extends Data> SheetsBuilder sheet(UnaryOperator<SheetWriter.SheetWriterBuilder<T>> prop) {
+                <T extends Data> SheetsBuilder sheet(UnaryOperator<SheetWriter.SheetWriterBuilder<@NonNull T>> prop) {
                     var op = new ArrayList<>(sheets == null ? List.of() : sheets);
                     op.add(prop.apply(SheetWriter.builder()).build());
                     return sheets(op);
@@ -762,15 +766,18 @@ public interface Excels {
         ) implements PropertyData<T> {
 
             public static <T> PropertyBuilder<T> builder() {
-                return new PropertyBuilder<T>();
+                return new PropertyBuilder<>();
             }
 
             public static class PropertyBuilder<T> {
+                @Nullable
                 private String caption;
+                @Nullable
                 private String name;
                 private int index;
+                @Nullable
                 private ExcelWriter<T> writer;
-                private Codec.DataProperty<T> codec;
+                private Codec.@Nullable DataProperty<T> codec;
 
                 PropertyBuilder() {
                 }
@@ -801,7 +808,11 @@ public interface Excels {
                 }
 
                 public Property<T> build() {
-                    return new Property<T>(this.caption, this.name, this.index, this.writer, this.codec);
+                    assert this.caption != null : "caption required";
+                    assert this.name != null : "name required";
+                    assert this.writer != null : "writer required";
+                    assert this.codec != null : "codec required";
+                    return new Property<>(this.caption, this.name, this.index, this.writer, this.codec);
                 }
 
                 public String toString() {
@@ -819,7 +830,7 @@ public interface Excels {
 
         AtomicReference<BOOLEAN_TEXT> BOOLEAN_TEXT_MODE = new AtomicReference<>(BOOLEAN_TEXT.DEFAULT);
 
-        static String formatBoolean(Boolean v) {
+        static String formatBoolean(@Nullable Boolean v) {
             return v == null ? "" : switch (BOOLEAN_TEXT_MODE.get()) {
                 case ON_OFF -> v ? "on" : "off";
                 case CHS -> v ? "是" : "否";
@@ -865,12 +876,15 @@ public interface Excels {
         PropertyFactory<Instant> INSTANT_PROPERTY = (c, n, i) -> new Property<>(c, n, i, INSTANT, Codec.INSTANT);
 
         class StylerBuilder {
+            @Nullable
             private Styler s;
 
             /// create table style
             public StylerBuilder table(TableStyle style) {
                 Styler x = (stage, wb, ws, wrote, sheets, sheet, size, property, data, row) -> {
                     if (stage == Styler.Stage.AFTER_WORKSHEET) {
+                        assert ws != null;
+                        assert sheet != null;
                         withTable(ws, size, sheet.headers(), style);
                     }
                 };
@@ -895,6 +909,7 @@ public interface Excels {
                 Objects.requireNonNull(conf);
                 Styler x = (stage, wb, ws, wrote, sheets, sheet, size, property, data, row) -> {
                     if (stage == Styler.Stage.BEFORE_WORKSHEET) {
+                        assert ws != null;
                         conf.accept(ws);
                     }
                 };
@@ -907,6 +922,8 @@ public interface Excels {
                 if (title <= 0 && values <= 0) return this;
                 Styler x = (stage, wb, ws, wrote, sheets, sheet, size, property, data, row) -> {
                     if (stage == Styler.Stage.AFTER_WORKSHEET) {
+                        assert ws != null;
+                        assert sheet != null;
                         if (title > 0 && sheet.title()) {
                             ws.rowHeight(0, title);
                         }
@@ -926,6 +943,8 @@ public interface Excels {
                 var set = new boolean[]{false};
                 Styler x = (stage, wb, ws, wrote, sheets, sheet, size, property, data, row) -> {
                     if (!set[0] && stage == Styler.Stage.AFTER_WORKSHEET) {
+                        assert ws != null;
+                        assert sheet != null;
                         var s = sheet.properties().stream().mapToInt(PropertyData::index).toArray();
                         var mi = IntStream.of(s).min().orElse(-1);
                         if (mi < 0) mi = 0;
@@ -943,11 +962,13 @@ public interface Excels {
             }
 
             /// config column style
-            public StylerBuilder columnStyle(IntFunction<ColumnStyler> decide) {
+            public StylerBuilder columnStyle(IntFunction<@Nullable ColumnStyler> decide) {
                 Objects.requireNonNull(decide);
                 var set = new boolean[]{false};
                 Styler x = (stage, wb, ws, wrote, sheets, sheet, size, property, data, row) -> {
                     if (!set[0] && stage == Styler.Stage.AFTER_WORKSHEET) {
+                        assert ws != null;
+                        assert sheet != null;
                         var s = sheet.properties().stream().mapToInt(PropertyData::index).toArray();
                         var mi = IntStream.of(s).min().orElse(-1);
                         if (mi < 0) mi = 0;
@@ -965,10 +986,13 @@ public interface Excels {
             }
 
             /// config cell style
-            public StylerBuilder cellStyle(BiIntFunction<CellStyler> decide) {
+            public StylerBuilder cellStyle(BiIntFunction<@Nullable CellStyler> decide) {
                 Objects.requireNonNull(decide);
                 Styler x = (stage, wb, ws, wrote, sheets, sheet, size, property, data, row) -> {
                     if (stage == Styler.Stage.AFTER_CELL) {
+                        assert ws != null;
+                        assert property != null;
+                        assert data != null;
                         var c = decide.apply(row, property.index());
                         if (c != null) c.apply(ws.style(row, property.index()), ws, property, data).set();
                     }
@@ -982,7 +1006,7 @@ public interface Excels {
             }
         }
 
-        interface BiIntFunction<T> {
+        interface BiIntFunction<T extends @Nullable Object> {
             T apply(int row, int col);
         }
 
@@ -1010,7 +1034,7 @@ public interface Excels {
                 ExcelWriter<T> writer,
                 ExcelReader<T> reader,
                 Codec.DataProperty<T> codec,
-                @With T defaultValue
+                @Nullable  @With T defaultValue
         ) implements ExcelData<T>, ExcelWriter.PropertyData<T>, ExcelReader.PropertyData<T> {
             public static class PropertyBuilder<T> {
                 public ExcelData.Property<T> build() {
@@ -1034,14 +1058,15 @@ public interface Excels {
                 List<Property<?>> properties,
                 Function<JsonObject, T> creator
         ) implements ExcelWriter.SheetData<T>, ExcelReader.SheetData<T> {
+            @NullUnmarked
             public static class EntityBuilder<T extends Data> {
-                public <P> EntityBuilder<T> property(UnaryOperator<Property.PropertyBuilder<P>> make) {
+                public <P> EntityBuilder<T> property(UnaryOperator<Property.PropertyBuilder<@NonNull P>> make) {
                     var o = properties instanceof ArrayList<?> a ? properties : new ArrayList<>(properties == null ? List.of() : properties);
                     o.add(make.apply(Property.builder()).build());
                     return properties(o);
                 }
 
-                public <P> EntityBuilder<T> property(Supplier<Property<P>> make) {
+                public <P> EntityBuilder<T> property(Supplier<Property<@NonNull P>> make) {
                     var o = properties instanceof ArrayList<?> a ? properties : new ArrayList<>(properties == null ? List.of() : properties);
                     o.add(make.get());
                     return properties(o);
@@ -1051,7 +1076,7 @@ public interface Excels {
                     return styler(prop.apply(ExcelWriter.styler()).build());
                 }
 
-                public Entity<T> build() {
+                public Entity<@NonNull T> build() {
                     if (skipRows == 0 && title) skipRows = 1;
                     return new Entity<>(sheet, index, skipRows, title, styler, Objects.requireNonNull(properties, "missing properties"), creator);
                 }
@@ -1063,7 +1088,7 @@ public interface Excels {
         }
 
         interface PropertyFactory<T> {
-            Property<T> apply(String caption, String name, int index, T defaultValue);
+            Property<T> apply(String caption, String name, int index, @Nullable T defaultValue);
 
             default Property<T> apply(String caption, String name, int index) {
                 return apply(caption, name, index, null);

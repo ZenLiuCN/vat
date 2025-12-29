@@ -1,5 +1,5 @@
-/// Utilities
+/// Meta Data
 @NullMarked
-package vat.api.utils;
+package vat.api.metadata;
 
 import org.jspecify.annotations.NullMarked;

@@ -1,5 +1,7 @@
 package vat.api.store;
 
+import org.jspecify.annotations.Nullable;
+
 import java.util.List;
 
 /**
@@ -16,7 +18,7 @@ public interface Renderer {
     void field(Writer w, Field<?> field);
 
 
-    void set(Writer w, Field<?> left, Object value);
+    void set(Writer w, Field<?> left, @Nullable Object value);
 
 
     void jsonRemove(Writer w, Field<?> left, Object[] path);
@@ -107,9 +109,10 @@ public interface Renderer {
 
     void bitwiseShiftRight(Writer w, Value<?> left, Object right, int bits);
 
-    void assign(Writer w, Field<?> left, Object value);
+    void assign(Writer w, Field<?> left, @Nullable Object value);
 
     void rawValue(Writer w, RawValue<?> tRawValue);
+
     /// render a  virtual history field
     void virtualHistory(Writer w, Field<?> raw);
 
@@ -137,6 +140,6 @@ public interface Renderer {
 
     }
 
-    Stage stage();
+    @Nullable Stage stage();
 
 }

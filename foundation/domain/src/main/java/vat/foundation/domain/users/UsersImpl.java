@@ -8,6 +8,7 @@ import io.vertx.sqlclient.Pool;
 import io.vertx.sqlclient.SqlConnection;
 import lombok.With;
 import org.jooq.lambda.tuple.Tuple4;
+import org.jspecify.annotations.Nullable;
 import vat.api.Activities;
 import vat.api.DomainError;
 import vat.api.implement.DomainManager;
@@ -26,6 +27,7 @@ import java.util.function.Function;
 ///
 /// @author Zen.Liu
 /// @since 2025-11-10
+@SuppressWarnings("unused")
 @AutoService(Activities.class)
 @Activity(mode = Activity.Mode.FOUNDATION, auto = true)
 public class UsersImpl extends UsersDomain<UsersImpl> {
@@ -56,7 +58,7 @@ public class UsersImpl extends UsersDomain<UsersImpl> {
 
     @Override
     protected Future<User> doUpdateProfile(ProfileUpdate req) {
-        return users(null).set(req.actor().orElse(-1L), req.id(), req.version(), t ->
+        return users(null).set(req.actor().orElse(-1L), Fn.safe(req.id()), req.version(), t ->
                 List.of(req.path()
                         .map(j -> JSON.jsonObjectPathWrite(j, req.data(), t.profile()))
                         .orElseGet(() -> t.profile().set(req.data()))));
@@ -108,8 +110,8 @@ public class UsersImpl extends UsersDomain<UsersImpl> {
 
     @Override
     protected Future<User> doRegister(Cert cert) {
-        return Future.succeededFuture()
-                .map(Optional.ofNullable(CertificateProvider.PROVIDERS.get(cert.kind())))
+
+        return Future.succeededFuture(Optional.ofNullable(CertificateProvider.PROVIDERS.get(cert.kind())))
                 .map(Fn.Maybe.orElseThrow(this::unsupportedKind))
                 .flatMap(ow -> sql.withConnection(tx -> certs(tx)
                         .exists(t -> t.kind().eq(cert.kind())
@@ -118,20 +120,21 @@ public class UsersImpl extends UsersDomain<UsersImpl> {
                         .flatMap($_ -> users(tx).putGetIdentity(null, new UserData()
                                 .profile(JsonObject.of())
                                 .toJson()))
-                        .flatMap(id -> ow.store(vertx, this, cert.identifier(), cert.secret())
-                                .flatMap(st -> certs(tx)
-                                        .justPut(null, new CertificateData()
-                                                .user(id)
-                                                .kind(cert.kind())
-                                                .identifier(cert.identifier())
-                                                .certificate(st)
-                                                .profile(JsonObject.of())
-                                                .asJson()))
-                                .flatMap($_ -> users(tx).maybe(id))
-                                .map(Fn.Maybe.orElseThrow(this::alreadyRegistered))
+                        .flatMap(id ->
+                               Fn.safe(ow).store(vertx, this, cert.identifier(), cert.secret())
+                                        .flatMap(st -> certs(tx)
+                                                .justPut(null, new CertificateData()
+                                                        .user(id)
+                                                        .kind(cert.kind())
+                                                        .identifier(cert.identifier())
+                                                        .certificate(st)
+                                                        .profile(JsonObject.of())
+                                                        .asJson()))
+                                        .flatMap($_ -> users(tx).maybe(id))
+                                        .map(Fn.Maybe.orElseThrow(this::alreadyRegistered))
                         ))
                 )
-                .onSuccess(u -> changedPublish(d -> d.ofKindCreated().user(u.id()).cert(-1)));
+                .onSuccess(u -> changedPublish(d -> d.ofKindCreated().user(Fn.safe(u.id())).cert(-1)));
     }
 
     @Override
@@ -146,7 +149,8 @@ public class UsersImpl extends UsersDomain<UsersImpl> {
 
     }
 
-    private Future<Long> certCheck(SqlConnection tx, int kind, String identifier, JsonObject secret) {
+    @SuppressWarnings("SameParameterValue")
+    private Future<Long> certCheck(@Nullable SqlConnection tx, int kind, String identifier, JsonObject secret) {
         return certGet(tx, kind, identifier, secret)
                 .map(Fn.Maybe.orElseThrow(this::invalidCertificate))
                 .flatMap(ce -> ce.test(vertx, this, identifier, secret)
@@ -155,7 +159,7 @@ public class UsersImpl extends UsersDomain<UsersImpl> {
                 );
     }
 
-    record CertEntry(long id, int version, long user, JsonObject cert, @With CertificateProvider provider) {
+    record CertEntry(long id, int version, long user, JsonObject cert,@Nullable @With CertificateProvider provider) {
         static final Function<Optional<Tuple4<Long, Integer, Long, JsonObject>>, Optional<CertEntry>> OF = v -> v.map(CertEntry::new);
 
         CertEntry(Tuple4<Long, Integer, Long, JsonObject> u) {
@@ -163,11 +167,11 @@ public class UsersImpl extends UsersDomain<UsersImpl> {
         }
 
         Future<Boolean> test(Vertx vertx, DomainManager m, String identifier, JsonObject secret) {
-            return provider.test(vertx, m, identifier, secret, cert);
+            return provider==null?Future.succeededFuture(false):provider.test(vertx, m, identifier, secret, cert);
         }
     }
 
-    private Future<Optional<CertEntry>> certGet(SqlConnection tx, int kind, String identifier, JsonObject secret) {
+    private Future<Optional<CertEntry>> certGet(@Nullable SqlConnection tx, int kind, String identifier, JsonObject secret) {
         return Future.succeededFuture()
                 .map(Optional.ofNullable(CertificateProvider.PROVIDERS.get(kind)))
                 .map(Fn.Maybe.orElseThrow(this::unsupportedKind))

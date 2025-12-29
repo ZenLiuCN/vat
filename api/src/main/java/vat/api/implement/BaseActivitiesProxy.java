@@ -9,7 +9,7 @@ import io.vertx.serviceproxy.ServiceException;
 import io.vertx.serviceproxy.ServiceExceptionMessageCodec;
 import lombok.Getter;
 import lombok.experimental.Accessors;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 import vat.api.Activities;
 import vat.api.utils.Buf;
 

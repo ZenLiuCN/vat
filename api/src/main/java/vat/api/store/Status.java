@@ -4,6 +4,7 @@ import io.vertx.core.Future;
 import io.vertx.core.json.JsonObject;
 import io.vertx.sqlclient.SqlResult;
 import io.vertx.sqlclient.templates.SqlTemplate;
+import org.jspecify.annotations.Nullable;
 import vat.api.DomainError;
 import vat.api.Store;
 
@@ -27,12 +28,12 @@ public record Status(State state) {
     }
 
     @SuppressWarnings("unchecked")
-    static <V> V first(List<?> v) {
+    static <V> @Nullable V first(List<?> v) {
         return v.isEmpty() ? null : (V) v.getFirst();
     }
 
-    static <V> List<V> toFirstList(SqlResult<? extends List<?>> v) {
-        var out = new ArrayList<V>();
+    static <V> List<@Nullable V> toFirstList(SqlResult<? extends List<?>> v) {
+        var out = new ArrayList<@Nullable V>();
         while (v != null) {
             var val = v.value();
             out.add(first(val));
@@ -42,7 +43,7 @@ public record Status(State state) {
     }
 
     @SuppressWarnings("unchecked")
-    static <V> V mustFirst(List<?> v) {
+    static <V> V mustFirst(@Nullable List<?> v) {
         if (v == null || v.size() != 1) throw DomainError.System.conflict("require one value");
         return (V) v.getFirst();
     }
@@ -372,7 +373,7 @@ public record Status(State state) {
     }
 
 
-    public void withActor(Object actor) {
+    public void withActor(@Nullable Object actor) {
         state.actor = actor;
     }
 

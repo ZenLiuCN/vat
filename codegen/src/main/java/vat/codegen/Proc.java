@@ -4,7 +4,7 @@ import com.palantir.javapoet.*;
 import io.vertx.core.Future;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 import vat.api.Data;
 import vat.api.DomainError;
 import vat.api.Entity;
@@ -228,7 +228,7 @@ public interface Proc {
                                                         .addMethod(MethodSpec.methodBuilder(property)
                                                                 .addModifiers(Modifier.PUBLIC)
                                                                 .addParameter(opt
-                                                                        ? ParameterSpec.builder(TypeName.get(rawType), "v").addAnnotation(vat.api.meta.Nullable.class).build()
+                                                                        ? ParameterSpec.builder(TypeName.get(rawType), "v").addAnnotation(Nullable.class).build()
                                                                         : ParameterSpec.builder(TypeName.get(rawType), "v").build())
                                                                 .returns(p.type())
                                                                 .addCode(validate)
@@ -305,7 +305,7 @@ public interface Proc {
                                                         .addMethod(MethodSpec.methodBuilder(property)
                                                                 .addModifiers(Modifier.PUBLIC)
                                                                 .addParameter(opt
-                                                                        ? ParameterSpec.builder(TypeName.get(rawType), "v").addAnnotation(vat.api.meta.Nullable.class).build()
+                                                                        ? ParameterSpec.builder(TypeName.get(rawType), "v").addAnnotation(Nullable.class).build()
                                                                         : ParameterSpec.builder(TypeName.get(rawType), "v").build())
                                                                 .returns(d.type())
                                                                 .addCode(validate)
@@ -350,7 +350,7 @@ public interface Proc {
                                                         .addMethod(MethodSpec.methodBuilder(f.name())
                                                                 .addModifiers(Modifier.PUBLIC)
                                                                 .addParameter(opt
-                                                                        ? ParameterSpec.builder(TypeName.get(rawType), "v").addAnnotation(vat.api.meta.Nullable.class).build()
+                                                                        ? ParameterSpec.builder(TypeName.get(rawType), "v").addAnnotation(Nullable.class).build()
                                                                         : ParameterSpec.builder(TypeName.get(rawType), "v").build())
                                                                 .returns(d.type())
                                                                 .addCode(CodeBlock.builder()
@@ -657,11 +657,11 @@ public interface Proc {
                         if (name.isBlank()) name = Domain.COPY_PREFIX + inputElement.getSimpleName();
                         var targets = d.resolved().stream()
                                 //* filter out Entity Base fields.
-                                .filter(x->!ctx.rawAssignableTo(x.method().getEnclosingElement().asType(), Entity.Base.class))
+                                .filter(x -> !ctx.rawAssignableTo(x.method().getEnclosingElement().asType(), Entity.Base.class))
                                 .collect(Collectors.toMap(ResolvedField::preferName, Function.identity()));
                         var sources = Domain.resolveDataFields(domain, input)
                                 //* filter out Entity Base fields.
-                                .filter(x->!ctx.rawAssignableTo(x.method().getEnclosingElement().asType(), Entity.Base.class))
+                                .filter(x -> !ctx.rawAssignableTo(x.method().getEnclosingElement().asType(), Entity.Base.class))
                                 .collect(Collectors.toMap(ResolvedField::name, Function.identity()));
                         var strategies = define.values()
                                 .values()
@@ -701,17 +701,19 @@ public interface Proc {
                                 var provide = strategy.provide();
                                 var validator = strategy.validate();
                                 var convert = strategy.convert();
-                                if(src==null){
-                                    if((!def)&&provide==null) throw new IllegalStateException("missing source field of "+target+",Provide with 'withDefault' or 'provide' to provide value for missing field");
-                                    if(validator!=null||convert!=null) throw new IllegalStateException("missing source field of "+target+" not support Validate or Convert");
-                                    if(provide!=null){
+                                if (src == null) {
+                                    if ((!def) && provide == null)
+                                        throw new IllegalStateException("missing source field of " + target + ",Provide with 'withDefault' or 'provide' to provide value for missing field");
+                                    if (validator != null || convert != null)
+                                        throw new IllegalStateException("missing source field of " + target + " not support Validate or Convert");
+                                    if (provide != null) {
                                         provide.functionInfo(ctx).filter(x ->
                                                 ctx.rawAssignableTo(x.v1, input) &&
                                                 ctx.rawAssignableTo(x.v2, target.rawType())
                                         ).orElseThrow(() -> DomainError.System.badRequest("invalid provide function: {}", target));
                                         code.addStatement("$T.$L.set(out,$S,$T.$L.apply(i))",
-                                                target.codec().holder(),target.codec().name(),
-                                               target.preferName(),
+                                                target.codec().holder(), target.codec().name(),
+                                                target.preferName(),
                                                 provide.holder(), provide.field()
                                         );
                                         continue;
@@ -897,8 +899,7 @@ public interface Proc {
                         .addModifiers(Modifier.PUBLIC)
                         .addParameter(ParameterizedTypeName.get(ClassName.get(Consumer.class),
                                         TypeName.get(fieldMirror).annotated(
-                                                AnnotationSpec.builder(
-                                                                vat.api.meta.Nullable.class)
+                                                AnnotationSpec.builder(Nullable.class)
                                                         .build())),
                                 "act")
                         .returns(typeType)
@@ -913,8 +914,7 @@ public interface Proc {
                         .addModifiers(Modifier.PUBLIC)
                         .addParameter(ParameterizedTypeName.get(ClassName.get(UnaryOperator.class),
                                         TypeName.get(fieldMirror).annotated(
-                                                AnnotationSpec.builder(
-                                                                vat.api.meta.Nullable.class)
+                                                AnnotationSpec.builder(Nullable.class)
                                                         .build())),
                                 "act")
                         .returns(typeType)

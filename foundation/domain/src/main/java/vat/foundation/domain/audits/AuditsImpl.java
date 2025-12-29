@@ -5,6 +5,7 @@ import io.vertx.core.Vertx;
 import io.vertx.core.json.JsonObject;
 import io.vertx.sqlclient.Pool;
 import vat.api.Activities;
+import vat.api.implement.Codec;
 import vat.api.meta.Activity;
 import vat.api.store.Dialect;
 import vat.foundation.audits.api.AuditsDomain;
@@ -14,6 +15,7 @@ import vat.foundation.audits.api.Codecs;
 ///
 /// @author Zen.Liu
 /// @since 2025-11-04
+@SuppressWarnings("unused")
 @AutoService(Activities.class)
 @Activity(mode = Activity.Mode.FOUNDATION)
 public class AuditsImpl extends AuditsDomain<AuditsImpl> {
@@ -34,8 +36,7 @@ public class AuditsImpl extends AuditsDomain<AuditsImpl> {
     @Override
     public void onInvoke(AuditInvoke event) {
         audits().justPut(event.actor(),
-                        Codecs.AUDIT_DATA.get(Codecs.AUDIT_INVOKE_DATA.from(event)
-                                        .asJson())
+                        Codec.convert(event, Codecs.AUDIT_INVOKE_DATA, Codecs.AUDIT_DATA)
                                 .reported(-1)
                                 .auditor(-1)
                                 .audited(0)
@@ -50,7 +51,7 @@ public class AuditsImpl extends AuditsDomain<AuditsImpl> {
     @Override
     public void onRequest(AuditRequest event) {
         audits().justPut(event.actor(),
-                        Codecs.AUDIT_DATA.get(Codecs.AUDIT_REQUEST_DATA.from(event).asJson())
+                        Codec.convert(event, Codecs.AUDIT_REQUEST_DATA, Codecs.AUDIT_DATA)
                                 .reported(-1)
                                 .auditor(-1)
                                 .audited(0)
@@ -64,14 +65,15 @@ public class AuditsImpl extends AuditsDomain<AuditsImpl> {
 
     @Override
     public void onResponse(AuditResponse event) {
-        audits().justPut(event.actor(), Codecs.AUDIT_DATA.get(Codecs.AUDIT_RESPONSE_DATA.from(event).asJson())
-                        .reported(-1)
-                        .auditor(-1)
-                        .audited(0)
-                        .result(Result.TODO)
-                        .comment("")
-                        .status(event.kind())
-                        .asJson()
+        audits().justPut(event.actor(),
+                        Codec.convert(event, Codecs.AUDIT_RESPONSE_DATA, Codecs.AUDIT_DATA)
+                                .reported(-1)
+                                .auditor(-1)
+                                .audited(0)
+                                .result(Result.TODO)
+                                .comment("")
+                                .status(event.kind())
+                                .asJson()
                 )
                 .onFailure(ex -> log.error("store event {} failure", event, ex));
     }

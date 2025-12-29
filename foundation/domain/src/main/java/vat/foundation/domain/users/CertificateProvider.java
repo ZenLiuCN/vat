@@ -5,6 +5,7 @@ import io.netty.util.collection.IntObjectMap;
 import io.vertx.core.Future;
 import io.vertx.core.Vertx;
 import io.vertx.core.json.JsonObject;
+import org.jspecify.annotations.Nullable;
 import vat.api.implement.DomainManager;
 import vat.api.utils.Primitives;
 
@@ -26,7 +27,8 @@ public interface CertificateProvider {
 
     Future<JsonObject> store(Vertx vertx, DomainManager manager, String identifier, JsonObject raw);
 
-    IntObjectMap<CertificateProvider> PROVIDERS = ServiceLoader
+    @SuppressWarnings("Java9UndeclaredServiceUsage")
+    IntObjectMap<@Nullable CertificateProvider> PROVIDERS = ServiceLoader
             .load(CertificateProvider.class, CertificateProvider.class.getClassLoader())
             .stream()
             .map(ServiceLoader.Provider::get)

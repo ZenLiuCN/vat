@@ -3,8 +3,9 @@ package vat.codegen.utils;
 
 import io.vertx.core.Future;
 import org.jetbrains.annotations.ApiStatus;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 import vat.api.Data;
 import vat.api.Event;
 import vat.api.Store;
@@ -45,7 +46,7 @@ public record Context(
         AtomicReference<Path> root
 ) implements LoggingTool, TypeTool, ElementTool, FileTool, CaseConv {
     @Override
-    public @NotNull String toString() {
+    public  String toString() {
         return "CONTEXT";
     }
 
@@ -376,7 +377,7 @@ public record Context(
     }
 
 
-    public <T extends OverridesMethod<T>> T preferOverride(@NotNull List<T> getterFields) {
+    public <T extends OverridesMethod<T>> T preferOverride(@NonNull List<T> getterFields) {
         if (getterFields.size() == 1) return getterFields.getFirst();
         T find = null;
         TypeMirror defined = null;
@@ -403,8 +404,7 @@ public record Context(
     }
 
     public boolean nullableAny(AnnotatedConstruct ele) {
-        return ele.getAnnotation(vat.api.meta.Nullable.class) != null
-               || ele.getAnnotation(Nullable.class) != null
+        return ele.getAnnotation(Nullable.class) != null
                || ele.getAnnotationMirrors().stream().anyMatch(x -> x.getAnnotationType().asElement().getSimpleName().contentEquals("Nullable"));
     }
 

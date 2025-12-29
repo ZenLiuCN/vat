@@ -3,7 +3,7 @@ package vat.api.store;
 import io.vertx.sqlclient.SqlClient;
 import lombok.Getter;
 import lombok.experimental.Accessors;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -15,28 +15,28 @@ import java.util.List;
  */
 @Getter
 @Accessors(fluent = true)
-public  class State {
+public class State {
     public boolean withHistory;
     public final SqlClient sql;
     public final Dialect dialect;
 
     public final Model<?> primary;
     public @Nullable List<StmtJoin> joined;
-    public @Nullable Statement.SetStmt[] sets;
+    public Statement.SetStmt @Nullable [] sets;
     public @Nullable List<Value<?>> picks;
-    public @Nullable StmtOrder[] ordered;
-    public @Nullable Field<?>[] grouped;
-    public @Nullable Value.BooleanValue having;
-    public @Nullable Value.BooleanValue cond;
-    public QueryType type;
+    public @Nullable StmtOrder @Nullable [] ordered;
+    public Field<?> @Nullable [] grouped;
+    public Value.@Nullable BooleanValue having;
+    public Value.@Nullable BooleanValue cond;
+    @Nullable  public QueryType type;
     public int tuples = 0;
-    public Integer skip;
-    public Integer limit;
+    @Nullable    public Integer skip;
+    @Nullable    public Integer limit;
     public boolean permanent;
-    public StmtAssign[] assigns;
-    public StmtAssign[][] assignsMany;
+    public StmtAssign@Nullable [] assigns;
+    public StmtAssign@Nullable [][] assignsMany;
     /// current operator ID
-    public Object actor;
+    @Nullable public Object actor;
 
     public boolean hasJoin() {
         return joined != null && !joined.isEmpty();

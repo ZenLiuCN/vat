@@ -1,5 +1,5 @@
-/// Utilities
+/// Launchers
 @NullMarked
-package vat.api.utils;
+package vat.core;
 
 import org.jspecify.annotations.NullMarked;

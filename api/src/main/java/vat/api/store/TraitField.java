@@ -1,6 +1,7 @@
 package vat.api.store;
 
-import org.jetbrains.annotations.Nullable;
+
+import org.jspecify.annotations.Nullable;
 
 ///
 /// @author Zen.Liu

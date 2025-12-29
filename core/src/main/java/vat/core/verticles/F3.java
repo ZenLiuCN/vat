@@ -8,9 +8,9 @@ import io.vertx.core.http.HttpServer;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.Router;
 import lombok.SneakyThrows;
+import org.jspecify.annotations.Nullable;
 import vat.api.Activities;
 import vat.api.implement.Web;
-import vat.api.meta.Nullable;
 import vat.api.utils.Fn;
 import vat.api.utils.Pointer;
 import vat.core.factory.CORSHandlerFactory;
@@ -35,6 +35,7 @@ public non-sealed interface F3 extends F {
             super(func, name, conf);
         }
 
+        @Nullable
         private HttpServer server;
 
         protected final Handler<Throwable> exceptionHandler = ex -> Web.log.error("http server process ", ex);
@@ -44,8 +45,8 @@ public non-sealed interface F3 extends F {
             return Future.succeededFuture()
                     .flatMap($ -> Fn.Many.Flat.join(
                             new HttpServerFactory().make(vertx, name, conf),
-                            conf.getJsonObject("authenticator") != null ? new JwtHandlerFactory().make(vertx, name, conf) : Future.succeededFuture(),
-                            conf.getJsonObject("cors") != null ? new CORSHandlerFactory().make(vertx, name, conf) : Future.succeededFuture()
+                            conf.getJsonObject("authenticator") != null ? new JwtHandlerFactory().make(vertx, name, conf) : Future.succeededFuture(null),
+                            conf.getJsonObject("cors") != null ? new CORSHandlerFactory().make(vertx, name, conf) : Future.succeededFuture(null)
                     ))
                     .map(x -> {
                         var info = x.v1;

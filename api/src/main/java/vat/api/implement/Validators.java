@@ -1,6 +1,7 @@
 package vat.api.implement;
 
 import io.vertx.core.json.JsonObject;
+import org.jspecify.annotations.Nullable;
 import vat.api.DomainError;
 
 import java.util.function.Consumer;
@@ -14,15 +15,18 @@ import java.util.function.LongConsumer;
 
 
 public interface Validators {
-    Consumer<String> NONE_BLANK = s -> {
+    Consumer<@Nullable String> NONE_BLANK = s -> {
         if (s == null || s.isBlank()) throw DomainError.System.badRequest("invalid string value:", s);
     };
-    Consumer<String> NONE_EMPTY = s -> {
+    Consumer<@Nullable String> NONE_EMPTY = s -> {
         if (s == null || s.isBlank()) throw DomainError.System.badRequest("invalid string value:", s);
     };
-    Consumer<JsonObject> NONE_EMPTY_JSON = s -> {
+    Consumer<@Nullable JsonObject> NONE_EMPTY_JSON = s -> {
         if (s == null || s.isEmpty()) throw DomainError.System.badRequest("invalid object value:", s);
     };
+
+    interface NullableValidator<T> extends Consumer<@Nullable T> {
+    }
 
     interface LongValidator extends LongConsumer {
         void accept(long l);

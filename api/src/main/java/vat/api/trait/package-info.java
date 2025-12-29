@@ -1,4 +1,4 @@
-
+/// Extendable
 @NullMarked
 package vat.api.trait;
 

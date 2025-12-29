@@ -1,5 +1,5 @@
-/// Utilities
+/// Factory of auto components
 @NullMarked
-package vat.api.utils;
+package vat.core.factory;
 
 import org.jspecify.annotations.NullMarked;

@@ -5,6 +5,7 @@ import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.sqlclient.Row;
 import io.vertx.sqlclient.data.Numeric;
+import org.jspecify.annotations.Nullable;
 import vat.api.utils.ITimes;
 
 import java.math.BigDecimal;
@@ -18,7 +19,8 @@ import java.util.UUID;
  * @author Zen.Liu
  * @since 2025-10-21
  */
-public sealed interface Value<T> extends Renderable permits Expr, Field, Field.ObjectField, RawValue,
+@SuppressWarnings("unused")
+public sealed interface Value<T extends @Nullable Object> extends Renderable permits Expr, Field, Field.ObjectField, RawValue,
         Value.BinaryValue, Value.BooleanValue, Value.ComparableValue, Value.EnumValue, Value.JsonValue,
         Value.ObjectValue, Value.StringValue, Value.TemporalValue {
     sealed interface ComparableValue<T> extends Value<T> {
@@ -67,43 +69,55 @@ public sealed interface Value<T> extends Renderable permits Expr, Field, Field.O
         return new Compare(Compare.Operator.NON_NULL, this);
     }
 
-    default BooleanValue eq(Value<T> v) {
+    default BooleanValue eq(@Nullable Value<T> v) {
         return v == null ? isNull() : new Compare(Compare.Operator.EQ, this, v);
     }
 
-    default BooleanValue eq(T v) {
+    default BooleanValue eq(@Nullable T v) {
         return v == null ? isNull() : new Compare(Compare.Operator.EQ, this, v);
     }
 
-    default BooleanValue neq(Value<T> v) {
+    default BooleanValue neq(@Nullable Value<T> v) {
         return v == null ? nonNull() : new Compare(Compare.Operator.NON_EQ, this, v);
     }
 
-    default BooleanValue neq(T v) {
+    default BooleanValue neq(@Nullable T v) {
         return v == null ? nonNull() : new Compare(Compare.Operator.NON_EQ, this, v);
     }
 
     /// method to convert in to or-equals
-    default BooleanValue eqAny(Collection<T> v) {
-        if (v == null) throw new IllegalStateException("invalid request");
+    default BooleanValue eqAny(Collection<@Nullable T> v) {
+        //noinspection ConstantValue
+        if (v == null || v.isEmpty()) throw new IllegalStateException("invalid request");
         var s = new HashSet<>(v);
-        if (s.size() == 1) return eq(s.iterator().next());
+        if (s.size() == 1) {
+            var x = s.iterator().next();
+            return x == null ? isNull() : this.eq(x);
+        }
         Value.BooleanValue cond = null;
         for (var ro : s) {
-            cond = cond == null ? this.eq(ro) : cond.or(this.eq(ro));
+            var cc = ro == null ? isNull() : new Compare(Compare.Operator.EQ, this, ro);
+            cond = cond == null ? cc : cond.or(cc);
         }
+        assert cond != null;
         return cond;
     }
 
     /// method to convert not in to and-not-equals
-    default BooleanValue neqAll(Collection<T> v) {
-        if (v == null) throw new IllegalStateException("invalid request");
+    default BooleanValue neqAll(Collection<@Nullable T> v) {
+        //noinspection ConstantValue
+        if (v == null || v.isEmpty()) throw new IllegalStateException("invalid request");
         var s = new HashSet<>(v);
-        if (s.size() == 1) return eq(s.iterator().next());
+        if (s.size() == 1) {
+            var x = s.iterator().next();
+            return x == null ? nonNull() : this.neq(x);
+        }
         Value.BooleanValue cond = null;
         for (var ro : s) {
-            cond = cond == null ? this.neq(ro) : cond.and(this.neq(ro));
+            var cc = ro == null ? nonNull() : new Compare(Compare.Operator.NON_EQ, this, ro);
+            cond = cond == null ? cc : cond.and(cc);
         }
+        assert cond != null;
         return cond;
     }
 
@@ -1071,7 +1085,7 @@ public sealed interface Value<T> extends Renderable permits Expr, Field, Field.O
         }
 
         @Override
-        default BooleanValue neq(Boolean v) {
+        default BooleanValue neq(@Nullable Boolean v) {
             return v == null ? nonNull() : new Compare(!v ? Compare.Operator.IS_TRUE : Compare.Operator.IS_FALSE, this);
         }
 
@@ -1080,7 +1094,7 @@ public sealed interface Value<T> extends Renderable permits Expr, Field, Field.O
         }
 
         @Override
-        default BooleanValue eq(Boolean v) {
+        default BooleanValue eq(@Nullable Boolean v) {
             return v == null ? isNull() : new Compare(v ? Compare.Operator.IS_TRUE : Compare.Operator.IS_FALSE, this);
         }
 
@@ -1197,7 +1211,7 @@ public sealed interface Value<T> extends Renderable permits Expr, Field, Field.O
     non-sealed interface TimeTZValue extends TemporalValue<OffsetTime> {
     }
 
-    sealed interface BinaryValue<T> extends Value<T> {
+    sealed interface BinaryValue<T extends @Nullable Object> extends Value<T> {
     }
 
     non-sealed interface BytesValue extends BinaryValue<byte[]> {
@@ -1210,13 +1224,15 @@ public sealed interface Value<T> extends Renderable permits Expr, Field, Field.O
     }
 
     non-sealed interface EnumOrdinalValue<T extends Enum<T>> extends EnumValue<T> {
-        default BooleanValue eqAny(Collection<T> v) {
+        default BooleanValue eqAny(Collection<@Nullable T> v) {
+            //noinspection ConstantValue
             if (v == null) {
                 throw new IllegalStateException("invalid request");
             } else {
-                HashSet<T> s = new HashSet<>(v);
+                HashSet<@Nullable T> s = new HashSet<>(v);
                 if (s.size() == 1) {
-                    return this.eq(s.iterator().next());
+                    T x = s.iterator().next();
+                    return x == null ? isNull() : this.eq(x);
                 } else {
                     BooleanValue cond = null;
 
@@ -1225,25 +1241,29 @@ public sealed interface Value<T> extends Renderable permits Expr, Field, Field.O
                         cond = cond == null ? cc : cond.or(cc);
                     }
 
+                    assert cond != null;
                     return cond;
                 }
             }
         }
 
-        default BooleanValue neqAll(Collection<T> v) {
+        default BooleanValue neqAll(Collection<@Nullable T> v) {
+            //noinspection ConstantValue
             if (v == null) {
                 throw new IllegalStateException("invalid request");
             } else {
-                HashSet<T> s = new HashSet<>(v);
+                HashSet<@Nullable T> s = new HashSet<>(v);
                 if (s.size() == 1) {
-                    return this.eq(s.iterator().next());
+                    T x = s.iterator().next();
+                    return x == null ? nonNull() : this.neq(x);
                 } else {
                     BooleanValue cond = null;
                     for (T ro : s) {
-                        var cc = ro == null ? isNull() : new Compare(Compare.Operator.NON_EQ, this, ro.ordinal());
+                        var cc = ro == null ? nonNull() : new Compare(Compare.Operator.NON_EQ, this, ro.ordinal());
                         cond = cond == null ? cc : cond.and(cc);
                     }
 
+                    assert cond != null;
                     return cond;
                 }
             }
@@ -1389,47 +1409,41 @@ public sealed interface Value<T> extends Renderable permits Expr, Field, Field.O
 
     non-sealed interface UUIDValue extends ComparableValue<UUID> {
 
-        default BooleanValue in(UUID... v) {
-            assert v.length > 1;
-            return new Compare(Compare.Operator.IN, this, v);
-        }
-
-
-        default BooleanValue notIn(UUID... v) {
-            assert v.length > 1;
-            return new Compare(Compare.Operator.NOT_IN, this, v);
-        }
     }
 
 
     interface LongDatetimeValue extends ObjectValue<ITimes.IDatetime> {
-        default BooleanValue eqAny(Collection<ITimes.IDatetime> v) {
+        @SuppressWarnings("ConstantValue")
+        default BooleanValue eqAny(Collection<ITimes.@Nullable IDatetime> v) {
             if (v == null) {
                 throw new IllegalStateException("invalid request");
             } else {
                 var s = new HashSet<>(v);
                 if (s.size() == 1) {
-                    return this.eq(s.iterator().next());
+                    var x = s.iterator().next();
+                    return x == null ? isNull() : this.eq(x);
                 } else {
                     BooleanValue cond = null;
-
                     for (var ro : s) {
                         var cc = ro == null ? isNull() : new Compare(Compare.Operator.EQ, this, ro.value());
                         cond = cond == null ? cc : cond.or(cc);
                     }
 
+                    assert cond != null;
                     return cond;
                 }
             }
         }
 
-        default BooleanValue neqAll(Collection<ITimes.IDatetime> v) {
+        default BooleanValue neqAll(Collection<ITimes.@Nullable IDatetime> v) {
+            //noinspection ConstantValue
             if (v == null) {
                 throw new IllegalStateException("invalid request");
             } else {
                 var s = new HashSet<>(v);
                 if (s.size() == 1) {
-                    return this.eq(s.iterator().next());
+                    var x = s.iterator().next();
+                    return x == null ? nonNull() : this.neq(x);
                 } else {
                     BooleanValue cond = null;
                     for (var ro : s) {
@@ -1437,6 +1451,7 @@ public sealed interface Value<T> extends Renderable permits Expr, Field, Field.O
                         cond = cond == null ? cc : cond.and(cc);
                     }
 
+                    assert cond != null;
                     return cond;
                 }
             }
@@ -1461,21 +1476,21 @@ public sealed interface Value<T> extends Renderable permits Expr, Field, Field.O
             return new Compare(this, low.value(), high.value());
         }
 
-        default BooleanValue eq(Long v) {
+        default BooleanValue eq(@Nullable Long v) {
             return v == null ? isNull() : new Compare(Compare.Operator.EQ, this, v);
         }
 
-        default BooleanValue neq(Long v) {
+        default BooleanValue neq(@Nullable Long v) {
             return v == null ? nonNull() : new Compare(Compare.Operator.NON_EQ, this, v);
         }
 
         @Override
-        default BooleanValue eq(ITimes.IDatetime v) {
+        default BooleanValue eq(ITimes.@Nullable IDatetime v) {
             return v == null ? isNull() : new Compare(Compare.Operator.EQ, this, v.value());
         }
 
         @Override
-        default BooleanValue neq(ITimes.IDatetime v) {
+        default BooleanValue neq(ITimes.@Nullable IDatetime v) {
             return v == null ? nonNull() : new Compare(Compare.Operator.NON_EQ, this, v.value());
         }
 
@@ -1552,13 +1567,15 @@ public sealed interface Value<T> extends Renderable permits Expr, Field, Field.O
     }
 
     interface IntegerDateValue extends ObjectValue<ITimes.IDate> {
-        default BooleanValue eqAny(Collection<ITimes.IDate> v) {
+        default BooleanValue eqAny(Collection<ITimes.@Nullable IDate> v) {
+            //noinspection ConstantValue
             if (v == null) {
                 throw new IllegalStateException("invalid request");
             } else {
                 var s = new HashSet<>(v);
                 if (s.size() == 1) {
-                    return this.eq(s.iterator().next());
+                    var x = s.iterator().next();
+                    return x == null ? isNull() : this.eq(x);
                 } else {
                     BooleanValue cond = null;
 
@@ -1567,18 +1584,21 @@ public sealed interface Value<T> extends Renderable permits Expr, Field, Field.O
                         cond = cond == null ? cc : cond.or(cc);
                     }
 
+                    assert cond != null;
                     return cond;
                 }
             }
         }
 
-        default BooleanValue neqAll(Collection<ITimes.IDate> v) {
+        default BooleanValue neqAll(Collection<ITimes.@Nullable IDate> v) {
+            //noinspection ConstantValue
             if (v == null) {
                 throw new IllegalStateException("invalid request");
             } else {
                 var s = new HashSet<>(v);
                 if (s.size() == 1) {
-                    return this.eq(s.iterator().next());
+                    var x = s.iterator().next();
+                    return x == null ? nonNull() : this.neq(x);
                 } else {
                     BooleanValue cond = null;
                     for (var ro : s) {
@@ -1586,6 +1606,7 @@ public sealed interface Value<T> extends Renderable permits Expr, Field, Field.O
                         cond = cond == null ? cc : cond.and(cc);
                     }
 
+                    assert cond != null;
                     return cond;
                 }
             }
@@ -1609,21 +1630,21 @@ public sealed interface Value<T> extends Renderable permits Expr, Field, Field.O
             return new Compare(this, low, high);
         }
 
-        default BooleanValue eq(Integer v) {
+        default BooleanValue eq(@Nullable Integer v) {
             return v == null ? isNull() : new Compare(Compare.Operator.EQ, this, v);
         }
 
-        default BooleanValue neq(Integer v) {
+        default BooleanValue neq(@Nullable Integer v) {
             return v == null ? nonNull() : new Compare(Compare.Operator.NON_EQ, this, v);
         }
 
         @Override
-        default BooleanValue eq(ITimes.IDate v) {
+        default BooleanValue eq(ITimes.@Nullable IDate v) {
             return v == null ? isNull() : new Compare(Compare.Operator.EQ, this, v.value());
         }
 
         @Override
-        default BooleanValue neq(ITimes.IDate v) {
+        default BooleanValue neq(ITimes.@Nullable IDate v) {
             return v == null ? nonNull() : new Compare(Compare.Operator.NON_EQ, this, v.value());
         }
 
@@ -1700,13 +1721,15 @@ public sealed interface Value<T> extends Renderable permits Expr, Field, Field.O
     }
 
     interface IntegerTimeValue extends ObjectValue<ITimes.ITime> {
-        default BooleanValue eqAny(Collection<ITimes.ITime> v) {
+        default BooleanValue eqAny(Collection<ITimes.@Nullable ITime> v) {
+            //noinspection ConstantValue
             if (v == null) {
                 throw new IllegalStateException("invalid request");
             } else {
                 var s = new HashSet<>(v);
                 if (s.size() == 1) {
-                    return this.eq(s.iterator().next());
+                    var x = s.iterator().next();
+                    return x == null ? isNull() : this.eq(x);
                 } else {
                     BooleanValue cond = null;
 
@@ -1715,18 +1738,21 @@ public sealed interface Value<T> extends Renderable permits Expr, Field, Field.O
                         cond = cond == null ? cc : cond.or(cc);
                     }
 
+                    assert cond != null;
                     return cond;
                 }
             }
         }
 
-        default BooleanValue neqAll(Collection<ITimes.ITime> v) {
+        default BooleanValue neqAll(Collection<ITimes.@Nullable ITime> v) {
+            //noinspection ConstantValue
             if (v == null) {
                 throw new IllegalStateException("invalid request");
             } else {
                 var s = new HashSet<>(v);
                 if (s.size() == 1) {
-                    return this.eq(s.iterator().next());
+                    var x = s.iterator().next();
+                    return x == null ? nonNull() : this.neq(x);
                 } else {
                     BooleanValue cond = null;
                     for (var ro : s) {
@@ -1734,6 +1760,7 @@ public sealed interface Value<T> extends Renderable permits Expr, Field, Field.O
                         cond = cond == null ? cc : cond.and(cc);
                     }
 
+                    assert cond != null;
                     return cond;
                 }
             }
@@ -1757,21 +1784,21 @@ public sealed interface Value<T> extends Renderable permits Expr, Field, Field.O
             return new Compare(this, low, high);
         }
 
-        default BooleanValue eq(Integer v) {
+        default BooleanValue eq(@Nullable Integer v) {
             return v == null ? isNull() : new Compare(Compare.Operator.EQ, this, v);
         }
 
-        default BooleanValue neq(Integer v) {
+        default BooleanValue neq(@Nullable Integer v) {
             return v == null ? nonNull() : new Compare(Compare.Operator.NON_EQ, this, v);
         }
 
         @Override
-        default BooleanValue eq(ITimes.ITime v) {
+        default BooleanValue eq(ITimes.@Nullable ITime v) {
             return v == null ? isNull() : new Compare(Compare.Operator.EQ, this, v.value());
         }
 
         @Override
-        default BooleanValue neq(ITimes.ITime v) {
+        default BooleanValue neq(ITimes.@Nullable ITime v) {
             return v == null ? nonNull() : new Compare(Compare.Operator.NON_EQ, this, v.value());
         }
 

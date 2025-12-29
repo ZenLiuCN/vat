@@ -1,7 +1,8 @@
 package vat.api.implement;
 
 import io.vertx.sqlclient.SqlClient;
-import org.jetbrains.annotations.Nullable;
+
+import org.jspecify.annotations.Nullable;
 import vat.api.store.Dialect;
 import vat.api.store.Model;
 

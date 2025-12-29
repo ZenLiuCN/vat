@@ -32,11 +32,8 @@ public abstract class BaseActivities<F extends Activities, I extends BaseActivit
         this.log = log;
     }
 
-    public boolean _valid() {
-        return vertx != null;
-    }
-
     ///  for SPI only
+    @SuppressWarnings("DataFlowIssue")
     protected BaseActivities() {
         this.vertx = null;
         this.address = null;
@@ -63,7 +60,7 @@ public abstract class BaseActivities<F extends Activities, I extends BaseActivit
                 .<Buffer>consumer(address + "::" + name, m -> {
                     try {
                         service
-                                .apply(Optional.ofNullable(m.body()).map(Buf::of))
+                                .apply(Optional.of(m.body()).map(Buf::of))
                                 .onComplete(ar -> {
                                     if (ar.succeeded()) {
                                         m.reply(ar.result().map(Buf::raw).orElse(null));

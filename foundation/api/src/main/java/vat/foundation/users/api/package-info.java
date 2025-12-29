@@ -1,5 +1,4 @@
-/// Utilities
 @NullMarked
-package vat.api.utils;
+package vat.foundation.users.api;
 
 import org.jspecify.annotations.NullMarked;

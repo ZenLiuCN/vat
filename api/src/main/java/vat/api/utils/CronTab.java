@@ -3,7 +3,6 @@ package vat.api.utils;
 import io.vertx.core.Future;
 import io.vertx.core.json.JsonObject;
 import lombok.EqualsAndHashCode;
-import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.Range;
 import org.jooq.lambda.tuple.Tuple;
 import org.jooq.lambda.tuple.Tuple4;

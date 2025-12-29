@@ -33,12 +33,16 @@ public @interface Identity {
         /// provide activity domain identity
         String provide() default "";
     }
-    /// mark an identity type field reference to an Entity
+
+    /// 1. mark an identity type field reference to an Entity
+    /// 2. mark on an Entity for its identity function
     @Retention(RetentionPolicy.CLASS)
-    @Target(ElementType.METHOD)
+    @Target({ElementType.METHOD, ElementType.TYPE})
     @Documented
     @interface Refer {
+        Class<? extends Activities> domain() default Activities.class;
+
         /// full identity Identifier
-        String value();
+        String value() default "identity";
     }
 }

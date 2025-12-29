@@ -1,9 +1,9 @@
 package vat.api.implement;
 
 
-import java.util.function.DoubleUnaryOperator;
-import java.util.function.IntUnaryOperator;
-import java.util.function.LongUnaryOperator;
+import org.jspecify.annotations.Nullable;
+
+import java.util.function.*;
 
 ///
 /// @author Zen.Liu
@@ -11,7 +11,11 @@ import java.util.function.LongUnaryOperator;
 
 
 public interface Interceptors {
+    interface NullableInterceptor<T> extends UnaryOperator<@Nullable T> {
+    }
 
+    interface NullableToNonInterceptor<T> extends Function<@Nullable T, T> {
+    }
 
     interface LongInterceptor extends LongUnaryOperator {
         long apply(long v);

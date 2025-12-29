@@ -70,6 +70,7 @@
         <versions.compile-testing>0.23.0</versions.compile-testing>
         <versions.jmh>1.37</versions.jmh>
         <versions.javapoet>0.8.0</versions.javapoet>
+        <versions.jspecify>1.0.0</versions.jspecify>
         <!-- endregion -->
 
         <!--region Protobuf  -->
@@ -80,19 +81,19 @@
         <versions.jspecify>1.0.0</versions.jspecify>
         <!--region vertx dependencies -->
         <versions.jool>0.9.15</versions.jool>
-        <versions.vertx>5.0.5</versions.vertx>
-        <versions.vertx-netty>4.2.7.Final</versions.vertx-netty>
+        <versions.vertx>5.0.6</versions.vertx>
+        <versions.vertx-netty>4.2.9.Final</versions.vertx-netty>
         <versions.jackson>2.18.2</versions.jackson>
         <!-- for other compatible use 2.0.9 -->
         <versions.slf4j>2.0.9</versions.slf4j>
 
-        <versions.micrometer>1.15.5</versions.micrometer>
+        <versions.micrometer>1.15.6</versions.micrometer>
         <versions.vertx-termd>1.1.11</versions.vertx-termd>
         <versions.vertx-opentelemetry>1.46.0</versions.vertx-opentelemetry>
         <versions.opentelemetry-okhttp>4.12.0</versions.opentelemetry-okhttp>
-        <versions.opentelemetry-semconv>1.34.0</versions.opentelemetry-semconv>
-        <versions.opentelemetry-semconv-incubating>1.34.0-alpha</versions.opentelemetry-semconv-incubating>
-        <versions.logback-classic>1.5.21</versions.logback-classic>
+        <versions.opentelemetry-semconv>1.37.0</versions.opentelemetry-semconv>
+        <versions.opentelemetry-semconv-incubating>${versions.opentelemetry-semconv}-alpha</versions.opentelemetry-semconv-incubating>
+        <versions.logback-classic>1.5.22</versions.logback-classic>
         <versions.caffeine>3.2.3</versions.caffeine>
         <versions.fastexcel>0.19.0</versions.fastexcel>
         <versions.hppc>0.10.0</versions.hppc>
@@ -218,6 +219,11 @@
                 <optional>true</optional>
             </dependency>
             <dependency>
+                <groupId>org.jspecify</groupId>
+                <artifactId>jspecify</artifactId>
+                <version>${versions.jspecify}</version>
+            </dependency>
+            <dependency>
                 <groupId>org.projectlombok</groupId>
                 <artifactId>lombok</artifactId>
                 <optional>true</optional>
@@ -243,11 +249,6 @@
                 <groupId>org.slf4j</groupId>
                 <artifactId>slf4j-api</artifactId>
                 <version>${versions.slf4j}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.jspecify</groupId>
-                <artifactId>jspecify</artifactId>
-                <version>${versions.jspecify}</version>
             </dependency>
             <!-- endregion -->
             <!--region utilities -->
@@ -846,6 +847,10 @@ maven.install.skip = !nodeNoShade @or !nodeNoLibs @or !nodeNoAssembly;
             <artifactId>annotations</artifactId>
             <optional>true</optional>
             <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.jspecify</groupId>
+            <artifactId>jspecify</artifactId>
         </dependency>
         <!-- endregion -->
         <dependency>

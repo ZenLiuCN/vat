@@ -4,10 +4,11 @@ import io.vertx.core.Vertx;
 import io.vertx.core.json.JsonObject;
 import io.vertx.serviceproxy.ServiceException;
 import io.vertx.serviceproxy.ServiceExceptionMessageCodec;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 import vat.api.Disposable;
 import vat.api.Event;
 
+import java.util.Objects;
 import java.util.function.Consumer;
 
 ///
@@ -41,7 +42,7 @@ public interface PubSub {
         } catch (Exception ignore) {
         }
         var addr = address == null ? type.getCanonicalName() : address;
-        var e = vertx.eventBus().<JsonObject>consumer(addr, ev -> subscriber.accept(codec.get(ev.body())));
+        var e = vertx.eventBus().<JsonObject>consumer(addr, ev -> subscriber.accept(Objects.requireNonNull(codec.get(ev.body()))));
         return e::unregister;
     }
 

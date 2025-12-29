@@ -8,13 +8,14 @@ import io.vertx.sqlclient.data.Numeric;
 import lombok.Getter;
 import lombok.SneakyThrows;
 import lombok.experimental.Accessors;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 import vat.api.implement.Codec;
 import vat.api.utils.Fn;
 import vat.api.utils.ITimes;
 
 import java.math.BigDecimal;
 import java.time.*;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -28,7 +29,7 @@ import static vat.api.utils.Fn.nullable;
  * @author Zen.Liu
  * @since 2025-10-21
  */
-public sealed interface Field<T> extends Value<T>, Renderable {
+public sealed interface Field<T extends @Nullable Object> extends Value<T>, Renderable {
     record HistoryProxy(Field<?> raw) implements Field<JsonObject> {
 
         @Override
@@ -73,7 +74,7 @@ public sealed interface Field<T> extends Value<T>, Renderable {
         }
     }
 
-    @Nullable Function<Object, Object> _onWrite();
+    @Nullable Function<@Nullable Object, @Nullable Object> _onWrite();
 
     @Override
     default void _render(Renderer renderer, Writer w) {
@@ -102,7 +103,7 @@ public sealed interface Field<T> extends Value<T>, Renderable {
     @Nullable Model<?> _owner();
 
     @Accessors(fluent = true)
-    sealed abstract class BaseField<T, F extends BaseField<T, F>> implements Field<T> {
+    sealed abstract class BaseField<T extends @Nullable Object, F extends BaseField<T, F>> implements Field<T> {
         @Getter
         protected final String _name;
         @Getter
@@ -112,13 +113,15 @@ public sealed interface Field<T> extends Value<T>, Renderable {
         @Getter
         protected final ValueReader<?> _reader;
         @Getter
-        protected final Function<Object, Object> _onWrite;
+        @Nullable
+        protected final Function<@Nullable Object, @Nullable Object> _onWrite;
 
         @Getter
+        @Nullable
         protected String _alias;
 
 
-        protected BaseField(String name, String property, Model<?> owner, ValueReader<T> reader) {
+        protected BaseField(String name, @Nullable String property, Model<?> owner, ValueReader<T> reader) {
             this._name = name;
             this._property = property == null || property.isBlank() ? name : property;
             this._owner = owner;
@@ -128,7 +131,7 @@ public sealed interface Field<T> extends Value<T>, Renderable {
         }
 
         @SuppressWarnings("unchecked")
-        protected BaseField(String name, String property, Model<?> owner, ValueReader<T> reader, Interceptor<T> interceptor) {
+        protected BaseField(String name, @Nullable String property, Model<?> owner, ValueReader<T> reader, Interceptor<T> interceptor) {
             this._name = name;
             this._property = property == null || property.isBlank() ? name : property;
             this._owner = owner;
@@ -147,13 +150,14 @@ public sealed interface Field<T> extends Value<T>, Renderable {
             this._onWrite = (Function<Object, Object>) onWrite;
         }
 
+        @SuppressWarnings({"unchecked", "rawtypes"})
         protected BaseField(String name, String property, Model<?> owner, ValueReader<?> reader,
-                            Function<Object, Object> onWrite, String alias) {
+                            @Nullable Function onWrite, @Nullable String alias) {
             this._name = name;
             this._property = property;
             this._owner = owner;
             this._reader = reader;
-            this._onWrite = onWrite;
+            this._onWrite = (Function<Object, Object>) onWrite;
             this._alias = alias;
         }
 
@@ -196,7 +200,7 @@ public sealed interface Field<T> extends Value<T>, Renderable {
         }
 
         protected BooleanField(String name, String property, Model<?> owner, ValueReader<?> reader,
-                               Function<Object, Object> onWrite, String alias) {
+                               @Nullable Function<Object, Object> onWrite, String alias) {
             super(name, property, owner, reader, onWrite, alias);
         }
 
@@ -223,17 +227,17 @@ public sealed interface Field<T> extends Value<T>, Renderable {
     }
 
     @SneakyThrows
-    static Class<?> clazz(Row r, int i) {
+    static @Nullable Class<?> clazz(Row r, int i) {
         var s = r.getString(i);
         if (s == null || s.isBlank()) return null;
         return Class.forName(s);
     }
 
-    static Duration duration(Row r, int i) {
+    static @Nullable Duration duration(Row r, int i) {
         return Codec.duration(r.getString(i));
     }
 
-    static Period period(Row r, int i) {
+    static @Nullable Period period(Row r, int i) {
         return Codec.period(r.getString(i));
     }
 
@@ -248,7 +252,7 @@ public sealed interface Field<T> extends Value<T>, Renderable {
         }
 
         protected StringField(String name, String property, Model<?> owner, ValueReader<?> reader,
-                              Function<Object, Object> onWrite, String alias) {
+                              @Nullable Function<Object, Object> onWrite, String alias) {
             super(name, property, owner, reader, onWrite, alias);
         }
 
@@ -275,7 +279,7 @@ public sealed interface Field<T> extends Value<T>, Renderable {
         }
 
         protected ClassField(String name, String property, Model<?> owner, ValueReader<?> reader,
-                             Function<Object, Object> onWrite, String alias) {
+                             @Nullable Function<Object, Object> onWrite, String alias) {
             super(name, property, owner, reader, onWrite, alias);
         }
 
@@ -290,12 +294,12 @@ public sealed interface Field<T> extends Value<T>, Renderable {
         }
 
         @Override
-        public StmtSet<Class<?>> set(Class<?> v) {
+        public StmtSet<Class<?>> set(@Nullable Class<?> v) {
             return new StmtSet<>(this, v == null ? null : v.getCanonicalName());
         }
 
         @Override
-        public StmtAssign value(Class<?> v) {
+        public StmtAssign value(@Nullable Class<?> v) {
             return new StmtAssign(this, v == null ? null : v.getCanonicalName());
         }
 
@@ -312,7 +316,7 @@ public sealed interface Field<T> extends Value<T>, Renderable {
         }
 
         protected DurationField(String name, String property, Model<?> owner, ValueReader<?> reader,
-                                Function<Object, Object> onWrite, String alias) {
+                                @Nullable Function<Object, Object> onWrite, String alias) {
             super(name, property, owner, reader, onWrite, alias);
         }
 
@@ -327,12 +331,12 @@ public sealed interface Field<T> extends Value<T>, Renderable {
         }
 
         @Override
-        public StmtSet<Duration> set(Duration v) {
+        public StmtSet<Duration> set(@Nullable Duration v) {
             return new StmtSet<>(this, v == null ? null : Codec.duration(v));
         }
 
         @Override
-        public StmtAssign value(Duration v) {
+        public StmtAssign value(@Nullable Duration v) {
             return new StmtAssign(this, v == null ? null : Codec.duration(v));
         }
 
@@ -349,7 +353,7 @@ public sealed interface Field<T> extends Value<T>, Renderable {
         }
 
         protected PeriodField(String name, String property, Model<?> owner, ValueReader<?> reader,
-                              Function<Object, Object> onWrite, String alias) {
+                              @Nullable Function<Object, Object> onWrite, String alias) {
             super(name, property, owner, reader, onWrite, alias);
         }
 
@@ -364,12 +368,12 @@ public sealed interface Field<T> extends Value<T>, Renderable {
         }
 
         @Override
-        public StmtSet<Period> set(Period v) {
+        public StmtSet<Period> set(@Nullable Period v) {
             return new StmtSet<>(this, v == null ? null : Codec.period(v));
         }
 
         @Override
-        public StmtAssign value(Period v) {
+        public StmtAssign value(@Nullable Period v) {
             return new StmtAssign(this, v == null ? null : Codec.period(v));
         }
 
@@ -386,7 +390,7 @@ public sealed interface Field<T> extends Value<T>, Renderable {
         }
 
         protected UUIDField(String name, String property, Model<?> owner, ValueReader<?> reader,
-                            Function<Object, Object> onWrite, String alias) {
+                            @Nullable Function<Object, Object> onWrite, String alias) {
             super(name, property, owner, reader, onWrite, alias);
         }
 
@@ -401,12 +405,12 @@ public sealed interface Field<T> extends Value<T>, Renderable {
         }
 
         @Override
-        public StmtSet<UUID> set(UUID v) {
+        public StmtSet<UUID> set(@Nullable UUID v) {
             return new StmtSet<>(this, v);
         }
 
         @Override
-        public StmtAssign value(UUID v) {
+        public StmtAssign value(@Nullable UUID v) {
             return new StmtAssign(this, v);
         }
 
@@ -419,7 +423,7 @@ public sealed interface Field<T> extends Value<T>, Renderable {
         }
 
         protected IntegerField(String name, String property, Model<?> owner, ValueReader<?> reader,
-                               Function<Object, Object> onWrite, String alias) {
+                               @Nullable Function<Object, Object> onWrite, String alias) {
             super(name, property, owner, reader, onWrite, alias);
         }
 
@@ -454,7 +458,7 @@ public sealed interface Field<T> extends Value<T>, Renderable {
         }
 
         protected NumericField(String name, String property, Model<?> owner, ValueReader<?> reader,
-                               Function<Object, Object> onWrite, String alias) {
+                               @Nullable Function<Object, Object> onWrite, String alias) {
             super(name, property, owner, reader, onWrite, alias);
         }
 
@@ -479,7 +483,7 @@ public sealed interface Field<T> extends Value<T>, Renderable {
         }
 
         protected DecimalField(String name, String property, Model<?> owner, ValueReader<?> reader,
-                               Function<Object, Object> onWrite, String alias) {
+                               @Nullable Function<Object, Object> onWrite, String alias) {
             super(name, property, owner, reader, onWrite, alias);
         }
 
@@ -504,7 +508,7 @@ public sealed interface Field<T> extends Value<T>, Renderable {
         }
 
         protected ByteField(String name, String property, Model<?> owner, ValueReader<?> reader,
-                            Function<Object, Object> onWrite, String alias) {
+                            @Nullable Function<Object, Object> onWrite, String alias) {
             super(name, property, owner, reader, onWrite, alias);
         }
 
@@ -537,7 +541,7 @@ public sealed interface Field<T> extends Value<T>, Renderable {
         }
 
         protected ShortField(String name, String property, Model<?> owner, ValueReader<?> reader,
-                             Function<Object, Object> onWrite, String alias) {
+                             @Nullable Function<Object, Object> onWrite, String alias) {
             super(name, property, owner, reader, onWrite, alias);
         }
 
@@ -570,7 +574,7 @@ public sealed interface Field<T> extends Value<T>, Renderable {
         }
 
         protected LongField(String name, String property, Model<?> owner, ValueReader<?> reader,
-                            Function<Object, Object> onWrite, String alias) {
+                            @Nullable Function<Object, Object> onWrite, String alias) {
             super(name, property, owner, reader, onWrite, alias);
         }
 
@@ -604,7 +608,7 @@ public sealed interface Field<T> extends Value<T>, Renderable {
         }
 
         protected FloatField(String name, String property, Model<?> owner, ValueReader<?> reader,
-                             Function<Object, Object> onWrite, String alias) {
+                             @Nullable Function<Object, Object> onWrite, String alias) {
             super(name, property, owner, reader, onWrite, alias);
         }
 
@@ -637,7 +641,7 @@ public sealed interface Field<T> extends Value<T>, Renderable {
         }
 
         protected DoubleField(String name, String property, Model<?> owner, ValueReader<?> reader,
-                              Function<Object, Object> onWrite, String alias) {
+                              @Nullable Function<Object, Object> onWrite, String alias) {
             super(name, property, owner, reader, onWrite, alias);
         }
 
@@ -670,7 +674,7 @@ public sealed interface Field<T> extends Value<T>, Renderable {
         }
 
         protected InstantField(String name, String property, Model<?> owner, ValueReader<?> reader,
-                               Function<Object, Object> onWrite, String alias) {
+                               @Nullable Function<Object, Object> onWrite, String alias) {
             super(name, property, owner, reader, onWrite, alias);
         }
 
@@ -695,7 +699,7 @@ public sealed interface Field<T> extends Value<T>, Renderable {
         }
 
         protected DateField(String name, String property, Model<?> owner, ValueReader<?> reader,
-                            Function<Object, Object> onWrite, String alias) {
+                            @Nullable Function<Object, Object> onWrite, String alias) {
             super(name, property, owner, reader, onWrite, alias);
         }
 
@@ -720,7 +724,7 @@ public sealed interface Field<T> extends Value<T>, Renderable {
         }
 
         protected TimeField(String name, String property, Model<?> owner, ValueReader<?> reader,
-                            Function<Object, Object> onWrite, String alias) {
+                            @Nullable Function<Object, Object> onWrite, String alias) {
             super(name, property, owner, reader, onWrite, alias);
         }
 
@@ -745,7 +749,7 @@ public sealed interface Field<T> extends Value<T>, Renderable {
         }
 
         protected DateTimeField(String name, String property, Model<?> owner, ValueReader<?> reader,
-                                Function<Object, Object> onWrite, String alias) {
+                                @Nullable Function<Object, Object> onWrite, String alias) {
             super(name, property, owner, reader, onWrite, alias);
         }
 
@@ -770,7 +774,7 @@ public sealed interface Field<T> extends Value<T>, Renderable {
         }
 
         protected TimeTZField(String name, String property, Model<?> owner, ValueReader<?> reader,
-                              Function<Object, Object> onWrite, String alias) {
+                              @Nullable Function<Object, Object> onWrite, String alias) {
             super(name, property, owner, reader, onWrite, alias);
         }
 
@@ -795,7 +799,7 @@ public sealed interface Field<T> extends Value<T>, Renderable {
         }
 
         protected DateTimeTZField(String name, String property, Model<?> owner, ValueReader<?> reader,
-                                  Function<Object, Object> onWrite, String alias) {
+                                  @Nullable Function<Object, Object> onWrite, String alias) {
             super(name, property, owner, reader, onWrite, alias);
         }
 
@@ -815,7 +819,7 @@ public sealed interface Field<T> extends Value<T>, Renderable {
 
     non-sealed class BytesField extends BaseField<byte[], BytesField> implements BytesValue {
         protected BytesField(String name, String property, Model<?> owner, ValueReader<?> reader,
-                             Function<Object, Object> onWrite, String alias) {
+                             @Nullable Function<Object, Object> onWrite, String alias) {
             super(name, property, owner, reader, onWrite, alias);
         }
 
@@ -837,9 +841,10 @@ public sealed interface Field<T> extends Value<T>, Renderable {
             super(name, property, owner, reader, onWrite, onRead);
         }
 
+
         public <R> BytesField(String name, String property, Model<?> owner, ValueReader<R> reader,
                               Function<byte[], R> onWrite) {
-            super(name, property, owner, reader, onWrite, null);
+            super(name, property, owner, reader, onWrite, (String) null);
         }
     }
 
@@ -850,7 +855,7 @@ public sealed interface Field<T> extends Value<T>, Renderable {
         }
 
         protected BufferField(String name, String property, Model<?> owner, ValueReader<?> reader,
-                              Function<Object, Object> onWrite, String alias) {
+                              @Nullable Function<Object, Object> onWrite, String alias) {
             super(name, property, owner, reader, onWrite, alias);
         }
 
@@ -869,7 +874,7 @@ public sealed interface Field<T> extends Value<T>, Renderable {
 
         public <R> BufferField(String name, String property, Model<?> owner, ValueReader<R> reader,
                                Function<Buffer, R> onWrite) {
-            super(name, property, owner, reader, onWrite, null);
+            super(name, property, owner, reader, onWrite, (String) null);
         }
     }
 
@@ -880,7 +885,7 @@ public sealed interface Field<T> extends Value<T>, Renderable {
         }
 
         protected JsonArrayField(String name, String property, Model<?> owner, ValueReader<?> reader,
-                                 Function<Object, Object> onWrite, String alias) {
+                                 @Nullable Function<Object, Object> onWrite, String alias) {
             super(name, property, owner, reader, onWrite, alias);
         }
 
@@ -940,7 +945,7 @@ public sealed interface Field<T> extends Value<T>, Renderable {
         }
 
         protected JsonObjectField(String name, String property, Model<?> owner, ValueReader<?> reader,
-                                  Function<Object, Object> onWrite, String alias) {
+                                  @Nullable Function<Object, Object> onWrite, String alias) {
             super(name, property, owner, reader, onWrite, alias);
         }
 
@@ -995,7 +1000,7 @@ public sealed interface Field<T> extends Value<T>, Renderable {
     non-sealed class EnumTextField<T extends Enum<T>> extends BaseField<T, EnumTextField<T>> implements
             EnumTextValue<T> {
         protected EnumTextField(String name, String property, Model<?> owner, ValueReader<?> reader,
-                                Function<Object, Object> onWrite, String alias) {
+                                @Nullable Function<Object, Object> onWrite, String alias) {
             super(name, property, owner, reader, onWrite, alias);
         }
 
@@ -1028,7 +1033,7 @@ public sealed interface Field<T> extends Value<T>, Renderable {
         }
 
         protected EnumOrdinalField(String name, String property, Model<?> owner, ValueReader<?> reader,
-                                   Function<Object, Object> onWrite, String alias) {
+                                   @Nullable Function<Object, Object> onWrite, String alias) {
             super(name, property, owner, reader, onWrite, alias);
         }
 
@@ -1038,7 +1043,7 @@ public sealed interface Field<T> extends Value<T>, Renderable {
         }
 
         public EnumOrdinalField(String name, String property, T[] type, Model<?> owner) {
-            super(name, property, owner, new ValueReader.Mapped<>(Row::getInteger, n -> n < 0 || n >= type.length ? null : type[n]));
+            super(name, property, owner, new ValueReader.Mapped<>(Row::getInteger, n -> n == null || n < 0 || n >= type.length ? null : type[n]));
         }
 
 
@@ -1046,7 +1051,7 @@ public sealed interface Field<T> extends Value<T>, Renderable {
 
     non-sealed class ObjectField<T> extends BaseField<T, ObjectField<T>> implements Value<T> {
         protected ObjectField(String name, String property, Model<?> owner, ValueReader<?> reader,
-                              Function<Object, Object> onWrite, String alias) {
+                              @Nullable Function<Object, Object> onWrite, String alias) {
             super(name, property, owner, reader, onWrite, alias);
         }
 
@@ -1078,7 +1083,7 @@ public sealed interface Field<T> extends Value<T>, Renderable {
         }
 
         protected LongDatetimeField(String name, String property, Model<?> owner, ValueReader<?> reader,
-                                    Function<Object, Object> onWrite, String alias) {
+                                    @Nullable Function<Object, Object> onWrite, String alias) {
             super(name, property, owner, reader, onWrite, alias);
         }
 
@@ -1103,11 +1108,11 @@ public sealed interface Field<T> extends Value<T>, Renderable {
             return new StmtAssign(this, v);
         }
 
-        public StmtSet<ITimes.IDatetime> set(ITimes.IDatetime v) {
+        public StmtSet<ITimes.IDatetime> set(ITimes.@Nullable IDatetime v) {
             return new StmtSet<>(this, v == null ? null : v.value());
         }
 
-        public StmtAssign value(ITimes.IDatetime v) {
+        public StmtAssign value(ITimes.@Nullable IDatetime v) {
             return new StmtAssign(this, v == null ? null : v.value());
         }
     }
@@ -1124,7 +1129,7 @@ public sealed interface Field<T> extends Value<T>, Renderable {
         }
 
         protected IntegerDateField(String name, String property, Model<?> owner, ValueReader<?> reader,
-                                   Function<Object, Object> onWrite, String alias) {
+                                   @Nullable Function<Object, Object> onWrite, String alias) {
             super(name, property, owner, reader, onWrite, alias);
         }
 
@@ -1149,11 +1154,11 @@ public sealed interface Field<T> extends Value<T>, Renderable {
             return new StmtAssign(this, v);
         }
 
-        public StmtSet<ITimes.IDate> set(ITimes.IDate v) {
+        public StmtSet<ITimes.IDate> set(ITimes.@Nullable IDate v) {
             return new StmtSet<>(this, v == null ? null : v.value());
         }
 
-        public StmtAssign value(ITimes.IDate v) {
+        public StmtAssign value(ITimes.@Nullable IDate v) {
             return new StmtAssign(this, v == null ? null : v.value());
         }
     }
@@ -1170,7 +1175,7 @@ public sealed interface Field<T> extends Value<T>, Renderable {
         }
 
         protected IntegerTimeField(String name, String property, Model<?> owner, ValueReader<?> reader,
-                                   Function<Object, Object> onWrite, String alias) {
+                                   @Nullable Function<Object, Object> onWrite, String alias) {
             super(name, property, owner, reader, onWrite, alias);
         }
 
@@ -1183,7 +1188,7 @@ public sealed interface Field<T> extends Value<T>, Renderable {
         }
 
         public <R> IntegerTimeField(String name, String property, Model<?> owner, ValueReader<R> reader,
-                                    Function<ITimes.ITime, R> onWrite, Function<R, ITimes.ITime> onRead) {
+                                    Function<ITimes.@Nullable ITime, R> onWrite, Function<R, ITimes.@Nullable ITime> onRead) {
             super(name, property, owner, reader, onWrite, onRead);
         }
 
@@ -1195,11 +1200,11 @@ public sealed interface Field<T> extends Value<T>, Renderable {
             return new StmtAssign(this, v);
         }
 
-        public StmtSet<ITimes.ITime> set(ITimes.ITime v) {
+        public StmtSet<ITimes.ITime> set(ITimes.@Nullable ITime v) {
             return new StmtSet<>(this, v == null ? null : v.value());
         }
 
-        public StmtAssign value(ITimes.ITime v) {
+        public StmtAssign value(ITimes.@Nullable ITime v) {
             return new StmtAssign(this, v == null ? null : v.value());
         }
     }
@@ -1242,7 +1247,7 @@ public sealed interface Field<T> extends Value<T>, Renderable {
     record AggregatedField(
             Aggregated mode,
             Field<?> source,
-            AtomicReference<String> aName) implements Field<Numeric>, NumericValue {
+            AtomicReference<@Nullable String> aName) implements Field<Numeric>, NumericValue {
         @Override
         public ValueReader<Numeric> _reader() {
             return Row::getNumeric;
@@ -1260,12 +1265,12 @@ public sealed interface Field<T> extends Value<T>, Renderable {
 
         @Override
         public String _name() {
-            return aName.get();
+            return Objects.requireNonNull(aName.get());
         }
 
         @Override
         public String _alias() {
-            return aName.get();
+            return Objects.requireNonNull(aName.get());
         }
 
         @Override
@@ -1275,7 +1280,7 @@ public sealed interface Field<T> extends Value<T>, Renderable {
         }
 
         @Override
-        public Model<?> _owner() {
+        public @Nullable Model<?> _owner() {
             return null;
         }
     }

@@ -4,8 +4,9 @@ import io.vertx.core.CompositeFuture;
 import io.vertx.core.Future;
 import io.vertx.core.Vertx;
 import io.vertx.core.json.JsonObject;
+import org.jspecify.annotations.Nullable;
 import vat.api.DomainError;
-import vat.api.meta.Nullable;
+
 
 import java.util.Arrays;
 import java.util.List;
@@ -18,6 +19,7 @@ import java.util.function.Supplier;
 /// @since 2025-11-10
 
 
+@SuppressWarnings("Java9UndeclaredServiceUsage")
 public interface ComponentFactory<T> {
     Class<T> target();
 

@@ -14,10 +14,10 @@ import io.vertx.ext.auth.jwt.JWTAuthOptions;
 import io.vertx.ext.web.RoutingContext;
 import io.vertx.ext.web.handler.SimpleAuthenticationHandler;
 import lombok.SneakyThrows;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import vat.api.DomainError;
-import vat.api.meta.Nullable;
 import vat.api.utils.Fn;
 
 import javax.crypto.Cipher;
@@ -35,6 +35,7 @@ import java.util.function.Function;
 /// @since 2025-11-10
 
 
+@SuppressWarnings("unused")
 public interface Authenticator {
     Logger log = LoggerFactory.getLogger(Authenticator.class);
     String USER_ID = "_AUTH_USER_ID";
@@ -122,7 +123,7 @@ public interface Authenticator {
     }
 
 
-    interface TokenReader extends Function<RoutingContext, String> {
+    interface TokenReader extends Function<RoutingContext, @Nullable String> {
 
         default TokenReader orElse(TokenReader reader) {
             return ctx -> {
@@ -178,6 +179,7 @@ public interface Authenticator {
     default Optional<Long> userId(User user) {
         return Authenticator.userIdentity(user);
     }
+
 
     AtomicReference<BitSet> INJECT_REQUEST_INFO = new AtomicReference<>(Fn.apply(new BitSet(), s -> s.set(INJECT_REMOTE_ADDRESS)));
 

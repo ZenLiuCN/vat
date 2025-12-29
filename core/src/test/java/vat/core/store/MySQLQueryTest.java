@@ -267,7 +267,8 @@ public class MySQLQueryTest {
 
 
     @Enhance
-    @Describe(value = "_USERS_CERTIFICATE", identity = "certIdentity")
+    @Describe(value = "_USERS_CERTIFICATE")
+    @Identity.Refer("certIdentity")
     @Table("foundation_users_certificate")
     public interface Certificate extends Record.Base, History {
         @Describe("_USERS_CERTIFICATE_USER")

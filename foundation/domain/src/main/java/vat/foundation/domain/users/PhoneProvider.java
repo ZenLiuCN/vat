@@ -15,6 +15,7 @@ import static vat.foundation.domain.users.PasswordProvider.hash;
 /// @author Zen.Liu
 /// @since 2025-11-13
 
+@SuppressWarnings("unused")
 @AutoService(CertificateProvider.class)
 public class PhoneProvider implements CertificateProvider {
     @Override

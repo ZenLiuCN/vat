@@ -8,6 +8,7 @@ import io.vertx.pgclient.PgBuilder;
 import io.vertx.sqlclient.Pool;
 import io.vertx.sqlclient.templates.SqlTemplate;
 import lombok.extern.slf4j.Slf4j;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
@@ -162,7 +163,7 @@ public class PgQueryTest {
             return this;
         }
 
-        public <R> R apply(Function<UserData, R> m) {
+        public <R> R apply(@NotNull Function<UserData, R> m) {
             return m.apply(this);
         }
 
@@ -268,7 +269,8 @@ public class PgQueryTest {
     }
 
     @Enhance
-    @Describe(value = "_USERS_CERTIFICATE", identity = "certIdentity")
+    @Describe(value = "_USERS_CERTIFICATE")
+    @Identity.Refer("certIdentity")
     @Table("foundation_users_certificate")
     public interface Certificate extends Record.Base, History {
         @Describe("_USERS_CERTIFICATE_USER")

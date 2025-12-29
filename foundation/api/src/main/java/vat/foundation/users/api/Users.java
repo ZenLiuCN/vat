@@ -4,7 +4,7 @@ import io.vertx.core.Future;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.sqlclient.SqlConnection;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 import vat.api.*;
 import vat.api.Record;
 import vat.api.meta.*;
@@ -23,7 +23,8 @@ import java.util.function.Function;
 @Describe("_USERS")
 public interface Users extends Activities {
     @Enhance
-    @Describe(value = "_USERS_USER", domain = Users.class)
+    @Describe(value = "_USERS_USER")
+    @Identity.Refer(domain = Users.class)
     @Table("foundation_users_user")
     interface User extends Actor.Base {
         @Describe("_USERS_USER_PROFILE")
@@ -31,7 +32,8 @@ public interface Users extends Activities {
     }
 
     @Enhance
-    @Describe(value = "_USERS_CERTIFICATE", identity = "certIdentity", domain = Users.class)
+    @Describe(value = "_USERS_CERTIFICATE")
+    @Identity.Refer(value = "certIdentity", domain = Users.class)
     @Table("foundation_users_certificate")
     interface Certificate extends Record.Base, History {
         @Describe("_USERS_CERTIFICATE_USER")
@@ -129,6 +131,7 @@ public interface Users extends Activities {
         @Describe("_USERS_CERT_UPDATE_NEW_CERTIFICATE")
         JsonObject newSecret();
     }
+
     /// check a cert if registered
     @Describe("_USERS_CERTIFICATION_CHECK")
     Future<Optional<User>> check(Cert cert);

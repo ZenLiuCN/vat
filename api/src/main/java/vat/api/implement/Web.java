@@ -24,13 +24,13 @@ import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.With;
 import lombok.experimental.Accessors;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import vat.api.Activities;
 import vat.api.Actor;
 import vat.api.Data;
 import vat.api.DomainError;
-import vat.api.meta.Nullable;
 import vat.api.trait.Applicative;
 import vat.api.utils.Fn;
 import vat.api.utils.Pointer;
@@ -48,7 +48,7 @@ import java.util.stream.Stream;
 ///
 /// @author Zen.Liu
 /// @since 2025-11-10
-
+@SuppressWarnings("unused")
 
 public interface Web extends Router, Applicative<Web> {
     interface RefreshedTokenProvider {
@@ -458,7 +458,7 @@ public interface Web extends Router, Applicative<Web> {
 
         //region Variables
         default List<String> varQueries(String name) {
-            return queryParam(name);
+            return Optional.ofNullable(queryParam(name)).orElseGet(List::of);
         }
 
         default Optional<String> varQuery(String name) {
@@ -473,31 +473,31 @@ public interface Web extends Router, Applicative<Web> {
             return Optional.ofNullable(request().getHeader(name));
         }
 
-        default <R> Optional<R> varQuery(String name, Function<String, R> map) {
+        default <V> Optional<V> varQuery(String name, Function<String, V> map) {
             return varQuery(name)
                     .filter(Predicate.not(String::isBlank))
                     .map(map);
         }
 
-        default <R> Optional<R> varHeader(String name, Function<String, R> map) {
+        default <V> Optional<V> varHeader(String name, Function<String, V> map) {
             return varHeader(name).filter(Predicate.not(String::isBlank)).map(map);
         }
 
-        default <R> Optional<R> varPath(String name, Function<String, R> map) {
+        default <V> Optional<V> varPath(String name, Function<String, V> map) {
             return varPath(name).filter(Predicate.not(String::isBlank)).map(map);
         }
 
-        default <R> R varQuery$(String name, Function<String, R> map) {
+        default <V> V varQuery$(String name, Function<String, V> map) {
             return varQuery(name, map)
                     .orElseThrow(() -> DomainError.System.badRequest("", ""));
         }
 
-        default <R> R varHeader$(String name, Function<String, R> map) {
+        default <V> V varHeader$(String name, Function<String, V> map) {
             return varHeader(name, map)
                     .orElseThrow(() -> DomainError.System.badRequest("", ""));
         }
 
-        default <R> R varPath$(String name, Function<String, R> map) {
+        default <V> V varPath$(String name, Function<String, V> map) {
             return varPath(name, map)
                     .orElseThrow(() -> DomainError.System.badRequest("", ""));
         }
@@ -612,7 +612,7 @@ public interface Web extends Router, Applicative<Web> {
         }
 
         /// Manually response process
-        default <T> Handler<AsyncResult<T>> response(BiFunction<Context, T, Future<Void>> response, @Nullable RefreshedTokenProvider provider) {
+        default <T> Handler<AsyncResult<T>> response(BiFunction<Context, T, @Nullable Future<Void>> response, @Nullable RefreshedTokenProvider provider) {
             var ctx = raw();
             var debug = debug();
             var before = injectRefreshedToken(provider, ctx);
@@ -791,15 +791,15 @@ public interface Web extends Router, Applicative<Web> {
                     }));
         }
 
-        default Handler<AsyncResult<Buffer>> binary(String contentType, @Nullable String fileName) {
+        default Handler<AsyncResult<Buffer>> binary(CharSequence contentType, @Nullable String fileName) {
             return binary(contentType, fileName, null);
         }
 
-        default Handler<AsyncResult<Buffer>> binary(String contentType, @Nullable String fileName, @Nullable RefreshedTokenProvider provider) {
+        default Handler<AsyncResult<Buffer>> binary(@Nullable CharSequence contentType, @Nullable String fileName, @Nullable RefreshedTokenProvider provider) {
             var ctx = raw();
             var debug = debug();
             var before = injectRefreshedToken(provider, ctx);
-            var type = Fn.notBlank(contentType) ? contentType : HttpHeaderValues.APPLICATION_OCTET_STREAM;
+            var type = contentType != null && !contentType.isEmpty() ? contentType : HttpHeaderValues.APPLICATION_OCTET_STREAM;
             return handler(ctx, debug, before,
                     Fn.notBlank(fileName) ? (c, v) -> Web.contentType(c, type)
                             .putHeader(HttpHeaders.CONTENT_DISPOSITION,
@@ -810,13 +810,13 @@ public interface Web extends Router, Applicative<Web> {
         }
 
         default <T> Handler<AsyncResult<T>> binary(Function<T, Buffer> binary,
-                                                   Function<T, String> contentType,
+                                                   Function<T, CharSequence> contentType,
                                                    Function<T, String> fileName) {
             return binary(binary, contentType, fileName, null);
         }
 
         default <T> Handler<AsyncResult<T>> binary(Function<T, Buffer> binary,
-                                                   Function<T, String> contentType,
+                                                   Function<T, CharSequence> contentType,
                                                    Function<T, String> fileName,
                                                    @Nullable RefreshedTokenProvider provider) {
             var ctx = raw();
@@ -1074,7 +1074,7 @@ public interface Web extends Router, Applicative<Web> {
         }
 
         @Override
-        default String pathParam(String name) {
+        default @Nullable String pathParam(String name) {
             return raw().pathParam(name);
         }
 
@@ -1089,7 +1089,7 @@ public interface Web extends Router, Applicative<Web> {
         }
 
         @Override
-        default List<String> queryParam(String name) {
+        default @Nullable List<String> queryParam(String name) {
             return raw().queryParam(name);
         }
 
@@ -1178,15 +1178,15 @@ public interface Web extends Router, Applicative<Web> {
 
         //endregion
 
-        default Context contentType(String contentType) {
+        default Context contentType(@Nullable CharSequence contentType) {
             raw().response().headers().add(HttpHeaderNames.CONTENT_TYPE,
-                    contentType == null || contentType.isBlank()
+                    contentType == null || contentType.isEmpty()
                             ? HttpHeaderValues.APPLICATION_OCTET_STREAM
                             : contentType);
             return this;
         }
 
-        default Context contentDisposition(String fileName) {
+        default Context contentDisposition(@Nullable String fileName) {
             raw().response().headers().add(HttpHeaderNames.CONTENT_DISPOSITION,
                     fileName == null || fileName.isBlank()
                             ? "attachment; filename=\"file\""
@@ -1262,6 +1262,7 @@ public interface Web extends Router, Applicative<Web> {
             final boolean debug;
             @Getter
             @Accessors(fluent = true)
+            @Nullable
             final Authenticator authenticate;
             @Getter
             @Accessors(fluent = true)
@@ -1274,7 +1275,7 @@ public interface Web extends Router, Applicative<Web> {
             @Accessors(fluent = true)
             final DomainManager domains;
 
-            public C(boolean debug, RoutingContext raw, Authenticator authenticate, JsonObject config, DomainManager domains) {
+            public C(boolean debug, RoutingContext raw, @Nullable Authenticator authenticate, JsonObject config, DomainManager domains) {
                 this.debug = debug;
                 this.raw = raw;
                 this.config = config;
@@ -1325,7 +1326,7 @@ public interface Web extends Router, Applicative<Web> {
             @Accessors(fluent = true)
             final T payload;
 
-            C(boolean debug, RoutingContext raw, Authenticator authenticate, JsonObject config, T payload, DomainManager domains) {
+            C(boolean debug, RoutingContext raw, @Nullable Authenticator authenticate, JsonObject config, T payload, DomainManager domains) {
                 super(debug, raw, authenticate, config, domains);
                 this.payload = payload;
                 if (payload instanceof Data.Validation<?> v) {
@@ -1586,7 +1587,7 @@ public interface Web extends Router, Applicative<Web> {
 
         default <T extends Data> Route Body(
                 Function<JsonObject, T> read,
-                UnaryOperator<BodyHandler> conf,
+                @Nullable UnaryOperator<BodyHandler> conf,
                 Consumer<BodyContext<T>> action) {
             return raw().consumes(HttpHeaderValues.APPLICATION_JSON.toString())
                     .handler((conf == null ? UnaryOperator.<BodyHandler>identity() : conf).apply(BodyHandler.create()))
@@ -1613,7 +1614,7 @@ public interface Web extends Router, Applicative<Web> {
 
         default <T extends Data> Route AuthBody(
                 Function<JsonObject, T> read,
-                UnaryOperator<BodyHandler> conf,
+                @Nullable UnaryOperator<BodyHandler> conf,
                 Consumer<BodyAuthorityContext<T>> action) {
             return raw()
                     .consumes(HttpHeaderValues.APPLICATION_JSON.toString()).handler((conf == null ? UnaryOperator.<BodyHandler>identity() : conf).apply(BodyHandler.create()))
@@ -1671,7 +1672,7 @@ public interface Web extends Router, Applicative<Web> {
 
         default <T extends Data> Route OptionalAuthBody(
                 Function<JsonObject, T> read,
-                UnaryOperator<BodyHandler> conf,
+                @Nullable UnaryOperator<BodyHandler> conf,
                 Consumer<BodyAuthorityContext<T>> action) {
             return raw()
                     .consumes(HttpHeaderValues.APPLICATION_JSON.toString()).handler((conf == null ? UnaryOperator.<BodyHandler>identity() : conf).apply(BodyHandler.create()))
@@ -1759,7 +1760,7 @@ public interface Web extends Router, Applicative<Web> {
         //endregion
     }
 
-    record E(boolean debug, Route raw, JsonObject config, Authenticator authenticate,
+    record E(boolean debug, Route raw, JsonObject config, @Nullable Authenticator authenticate,
              DomainManager domains) implements Routing {
         @Override
         public Optional<Authenticator> authenticator() {
@@ -1786,6 +1787,7 @@ public interface Web extends Router, Applicative<Web> {
             long identity,
             JsonObject value
     ) implements Data {
+
 
         public Authority(JsonObject v) {
             this(v.getString("domain"), v.getLong("identity"), v.getJsonObject("value"));
@@ -1843,7 +1845,7 @@ public interface Web extends Router, Applicative<Web> {
     Runnable NOOP = () -> {
     };
 
-    static Runnable injectRefreshedToken(Web.RefreshedTokenProvider provider, RoutingContext ctx) {
+    static Runnable injectRefreshedToken(Web.@Nullable RefreshedTokenProvider provider, RoutingContext ctx) {
         if (provider == null) return NOOP;
         return () ->
                 Optional.ofNullable(ctx.user())
@@ -1851,23 +1853,23 @@ public interface Web extends Router, Applicative<Web> {
                         .ifPresent(string -> ctx.response().putHeader(REFRESH_TOKEN_KEY.get(), string));
     }
 
-    static JsonObject toJson(Data d) {
+    static @Nullable JsonObject toJson(@Nullable Data d) {
         return d == null ? null : d.toJson();
     }
 
-    static JsonObject toJS(Data d) {
+    static @Nullable JsonObject toJS(@Nullable Data d) {
         return d == null ? null : d.toJS();
     }
 
-    static JsonArray toJS(Collection<? extends Data> v) {
+    static @Nullable JsonArray toJS(@Nullable Collection<? extends Data> v) {
         return v == null ? null : new JsonArray(v.stream().map(Fn.nullable(Data::toJS)).toList());
     }
 
-    static JsonArray toJson(Collection<? extends Data> v) {
+    static @Nullable JsonArray toJson(@Nullable Collection<? extends Data> v) {
         return v == null ? null : new JsonArray(v.stream().map(Fn.nullable(Data::toJson)).toList());
     }
 
-    static HttpServerResponse contentType(RoutingContext ctx, CharSequence contentType) {
+    static HttpServerResponse contentType(RoutingContext ctx, @Nullable CharSequence contentType) {
         var res = ctx.response();
         if (res.headers().contains(HttpHeaders.CONTENT_TYPE) || contentType == null) return res;
         res.putHeader(HttpHeaders.CONTENT_TYPE, contentType);

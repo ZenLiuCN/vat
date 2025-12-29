@@ -7,9 +7,9 @@ import io.vertx.core.eventbus.DeliveryOptions;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import lombok.SneakyThrows;
-import org.jetbrains.annotations.Nullable;
 import org.jooq.lambda.function.Function2;
 import org.jooq.lambda.function.Function3;
+import org.jspecify.annotations.Nullable;
 import vat.api.Activities;
 import vat.api.Data;
 import vat.api.Domain;
@@ -37,7 +37,10 @@ import java.util.function.Supplier;
  * @author Zen.Liu
  * @since 2025-10-21
  */
+@SuppressWarnings("unused")
 public interface Codec<T> extends ReaderWriter.DataReader<T>, ReaderWriter.DataWriter<T>, ReaderWriter.Creator<T> {
+
+
 
 
     /// generated Codec implement Provider as final class without any instance methods. The implement must be named as `Codecs`.
@@ -50,11 +53,11 @@ public interface Codec<T> extends ReaderWriter.DataReader<T>, ReaderWriter.DataW
     }
     //region JSON properties
 
-    interface ObjectReader<T> extends Function2<JsonObject, String, T> {
-        T apply(JsonObject o, String key);
+    interface ObjectReader<T extends @Nullable Object> extends Function2<JsonObject, String, @Nullable T> {
+        @Nullable T apply(JsonObject o, String key);
 
         default <R> ObjectReader<R> map(Function<T, R> act) {
-            return (o, k) -> act.apply(apply(o, k));
+            return (o, k) -> Optional.ofNullable(apply(o, k)).map(act).orElse(null);
         }
 
         ObjectReader<String> STRING = JsonObject::getString;
@@ -72,11 +75,11 @@ public interface Codec<T> extends ReaderWriter.DataReader<T>, ReaderWriter.DataW
 
     }
 
-    interface ObjectWriter<T> extends Function3<JsonObject, String, T, JsonObject> {
-        JsonObject apply(JsonObject o, String key, T v);
+    interface ObjectWriter<T extends @Nullable Object> extends Function3<JsonObject, String, @Nullable T, JsonObject> {
+        JsonObject apply(JsonObject o, String key, @Nullable T v);
 
         default <R> ObjectWriter<R> map(Function<R, T> act) {
-            return (o, k, v) -> apply(o, k, act.apply(v));
+            return (o, k, v) -> apply(o, k, v == null ? null : act.apply(v));
         }
 
         ObjectWriter<String> STRING = JsonObject::put;
@@ -95,16 +98,16 @@ public interface Codec<T> extends ReaderWriter.DataReader<T>, ReaderWriter.DataW
 
     }
 
-    interface ArrayReader<T> extends Function2<JsonArray, Integer, T> {
-        T apply(JsonArray o, int key);
+    interface ArrayReader<T extends @Nullable Object> extends Function2<JsonArray, Integer, @Nullable T> {
+        @Nullable T apply(JsonArray o, int key);
 
         @Override
-        default T apply(JsonArray v1, Integer v2) {
+        default @Nullable T apply(JsonArray v1, Integer v2) {
             return apply(v1, v2.intValue());
         }
 
         default <R> ArrayReader<R> map(Function<T, R> act) {
-            return (o, k) -> act.apply(apply(o, k));
+            return (o, k) -> Optional.ofNullable(apply(o, k)).map(act).orElse(null);
         }
 
         ArrayReader<String> STRING = JsonArray::getString;
@@ -123,16 +126,16 @@ public interface Codec<T> extends ReaderWriter.DataReader<T>, ReaderWriter.DataW
 
     }
 
-    interface ArrayWriter<T> extends Function3<JsonArray, Integer, T, JsonArray> {
-        JsonArray apply(JsonArray o, int key, T v);
+    interface ArrayWriter<T extends @Nullable Object> extends Function3<JsonArray, Integer, @Nullable T, JsonArray> {
+        JsonArray apply(JsonArray o, int key, @Nullable T v);
 
         @Override
-        default JsonArray apply(JsonArray v1, Integer v2, T v3) {
+        default JsonArray apply(JsonArray v1, Integer v2, @Nullable T v3) {
             return apply(v1, v2.intValue(), v3);
         }
 
         default <R> ArrayWriter<R> map(Function<R, T> act) {
-            return (o, k, v) -> apply(o, k, act.apply(v));
+            return (o, k, v) -> apply(o, k, v == null ? null : act.apply(v));
         }
 
         ArrayWriter<String> STRING = JsonArray::set;
@@ -150,33 +153,35 @@ public interface Codec<T> extends ReaderWriter.DataReader<T>, ReaderWriter.DataW
 
     }
 
-    record MapReader<K, V, M extends Map<K, V>>(
+
+    record MapReader<K, V, M extends Map<K, @Nullable V>>(
             IntFunction<M> ctor,
             ArrayReader<K> k,
             ArrayReader<V> v
     )
             implements ObjectReader<M> {
         @Override
-        public M apply(JsonObject o, String key) {
+        public @Nullable M apply(JsonObject o, String key) {
             var j = o.getJsonArray(key);
             if (j == null) return null;
             if (j.isEmpty()) return ctor.apply(0);
             var m = ctor.apply(j.size() / 2);
             for (int i = 0; i < j.size(); i += 2) {
-                m.put(k.apply(j, i), v.apply(j, i + 1));
+                m.put(Objects.requireNonNull(k.apply(j, i)), (v.apply(j, i + 1)));
             }
             return m;
         }
     }
 
-    record MapWriter<K, V, M extends Map<K, V>>(
+    record MapWriter<K, V, M extends Map<K, @Nullable V>>(
             ArrayWriter<K> k,
             ArrayWriter<V> v
     )
             implements ObjectWriter<M> {
 
+        @SuppressWarnings("DuplicatedCode")
         @Override
-        public JsonObject apply(JsonObject o, String key, M m) {
+        public JsonObject apply(JsonObject o, String key, @Nullable M m) {
             if (m == null) return o;
             if (m.isEmpty()) return o.put(key, new ArrayList<>(0));
             var j = new JsonArray(new ArrayList<>(m.size() * 2));
@@ -191,13 +196,13 @@ public interface Codec<T> extends ReaderWriter.DataReader<T>, ReaderWriter.DataW
         }
     }
 
-    record RepeatReader<V, C extends Collection<V>>(
+    record RepeatReader<V, C extends Collection<@Nullable V>>(
             IntFunction<C> ctor,
             ArrayReader<V> v
     )
             implements ObjectReader<C> {
         @Override
-        public C apply(JsonObject o, String key) {
+        public @Nullable C apply(JsonObject o, String key) {
             var j = o.getJsonArray(key);
             if (j == null) return null;
             if (j.isEmpty()) return ctor.apply(0);
@@ -209,19 +214,21 @@ public interface Codec<T> extends ReaderWriter.DataReader<T>, ReaderWriter.DataW
         }
     }
 
-    record RepeatWriter<V, C extends Collection<V>>(
+    record RepeatWriter<V, C extends Collection<@Nullable V>>(
             ArrayWriter<V> v
     )
             implements ObjectWriter<C> {
+        @SuppressWarnings("DuplicatedCode")
         @Override
-        public JsonObject apply(JsonObject o, String key, C m) {
+        public JsonObject apply(JsonObject o, String key, @Nullable C m) {
             if (m == null) return o;
             if (m.isEmpty()) return o.put(key, new ArrayList<>(0));
             var j = new JsonArray(new ArrayList<>(m.size() * 2));
             var i = new AtomicInteger(0);
             m.forEach((ke) -> {
                 j.addNull();
-                v.apply(j, i.getAndIncrement(), ke);
+                if (ke != null)
+                    v.apply(j, i.getAndIncrement(), ke);
             });
             return o;
         }
@@ -230,39 +237,41 @@ public interface Codec<T> extends ReaderWriter.DataReader<T>, ReaderWriter.DataW
     record ArrayTypeWriter<T>(ArrayWriter<T> v) implements ObjectWriter<T[]> {
 
         @Override
-        public JsonObject apply(JsonObject o, String key, T[] m) {
+        public JsonObject apply(JsonObject o, String key, @Nullable T @Nullable [] m) {
             if (m == null) return o;
             if (m.length == 0) return o.put(key, new ArrayList<>(0));
             var j = new JsonArray(new ArrayList<>(m.length));
             for (int i = 0; i < m.length; i++) {
                 j.addNull();
-                v.apply(j, i, m[i]);
+                if (m[i] != null)
+                    v.apply(j, i, m[i]);
             }
             return o;
         }
     }
 
-    record ArrayTypeReader<T>(Class<T> type, ArrayReader<T> v) implements ObjectReader<T[]> {
+    record ArrayTypeReader<T>(Class<T> type,
+                              ArrayReader<T> v) implements ObjectReader<T[]> {
         @SuppressWarnings("unchecked")
         @Override
-        public T[] apply(JsonObject o, String key) {
+        public @Nullable T @Nullable [] apply(JsonObject o, String key) {
             var j = o.getJsonArray(key);
             if (j == null) return null;
             if (j.isEmpty()) return (T[]) Array.newInstance(type, 0);
-            var x = (T[]) Array.newInstance(type, j.size());
-            for (int i = 0; i < j.size(); i++) {
+            @Nullable T[] x = (@Nullable T[]) Array.newInstance(type, j.size());
+            for (var i = 0; i < j.size(); i++) {
                 x[i] = v.apply(j, i);
             }
             return x;
         }
     }
 
-    interface DataProperty<T> {
-        T get(JsonObject o, String key);
+    interface DataProperty<T extends @Nullable Object> {
+        @Nullable T get(JsonObject o, String key);
 
         /// preferred key getter, first none null key assign value as real value. Check out {@link vat.api.meta.Alias}
-        default T get(JsonObject o, String... key) {
-            for (String s : key) {
+        default @Nullable T get(JsonObject o, String... key) {
+            for (var s : key) {
                 if (o.containsKey(s)) {
                     return get(o, s);
                 }
@@ -270,35 +279,37 @@ public interface Codec<T> extends ReaderWriter.DataReader<T>, ReaderWriter.DataW
             return null;
         }
 
-        JsonObject set(JsonObject o, String key, T t);
+        JsonObject set(JsonObject o, String key, @Nullable T t);
 
     }
 
-    record CombineArrayProperty<T>(ArrayTypeReader<T> r, ArrayTypeWriter<T> w) implements DataProperty<T[]> {
-        public T[] get(JsonObject o, String key) {
+    record CombineArrayProperty<T>(ArrayTypeReader<T> r,
+                                   ArrayTypeWriter<T> w) implements DataProperty<T[]> {
+        public @Nullable T @Nullable [] get(JsonObject o, String key) {
             return r.apply(o, key);
         }
 
-        public JsonObject set(JsonObject o, String key, T[] t) {
+        public JsonObject set(JsonObject o, String key, @Nullable T @Nullable [] t) {
             return w.apply(o, key, t);
         }
 
-        public <R> CombineProperty<R> map(Function<T[], R> to, Function<R, T[]> from) {
+        public <R> CombineProperty<R> map(Function<@Nullable T @Nullable [], @Nullable R> to, Function<@Nullable R, @Nullable T @Nullable []> from) {
             return new CombineProperty<>(r.map(to), w.map(from));
         }
 
     }
 
-    record CombineProperty<T>(ObjectReader<T> r, ObjectWriter<T> w) implements DataProperty<T> {
-        public T get(JsonObject o, String key) {
+    record CombineProperty<T extends @Nullable Object>(ObjectReader<T> r,
+                                                       ObjectWriter<T> w) implements DataProperty<T> {
+        public @Nullable T get(JsonObject o, String key) {
             return r.apply(o, key);
         }
 
-        public JsonObject set(JsonObject o, String key, T t) {
+        public JsonObject set(JsonObject o, String key, @Nullable T t) {
             return w.apply(o, key, t);
         }
 
-        public <R> CombineProperty<R> map(Function<T, R> to, Function<R, T> from) {
+        public <R> CombineProperty<R> map(Function<@Nullable T, @Nullable R> to, Function<@Nullable R, @Nullable T> from) {
             return new CombineProperty<>(r.map(to), w.map(from));
         }
 
@@ -341,7 +352,7 @@ public interface Codec<T> extends ReaderWriter.DataReader<T>, ReaderWriter.DataW
     }
 
     interface JsDecoder<O extends Data> extends Function<JsonObject, O> {
-        O apply(JsonObject j, Void ignore);
+        O apply(JsonObject j, @Nullable Void ignore);
 
         @Override
         default O apply(JsonObject value) {
@@ -351,25 +362,25 @@ public interface Codec<T> extends ReaderWriter.DataReader<T>, ReaderWriter.DataW
 
     interface DataCodec<O extends T, T extends Data> extends Codec<T> {
         @Override
-        default T fromJson(JsonObject json) {
+        default @Nullable T fromJson(@Nullable JsonObject json) {
             return get(json);
         }
 
 
-        default O buf(Buf i) {
+        default @Nullable O buf(@Nullable Buf i) {
             return i == null ? null : get(i.toJsonObject());
         }
 
-        default Buf buf(T i) {
+        default @Nullable Buf buf(@Nullable T i) {
             return i == null ? null : Buf.of(i.toJson().toBuffer());
         }
 
-        O get(JsonObject o);
+        @Nullable O get(@Nullable JsonObject o);
 
-        O from(T t);
+        @Nullable O from(@Nullable T t);
 
         @Override
-        default JsonObject set(T t) {
+        default @Nullable JsonObject set(@Nullable T t) {
             if (t == null) {
                 return null;
             }
@@ -388,7 +399,7 @@ public interface Codec<T> extends ReaderWriter.DataReader<T>, ReaderWriter.DataW
         ) implements DataCodec<O, T> {
 
             @Override
-            public O get(JsonObject o) {
+            public @Nullable O get(@Nullable JsonObject o) {
                 if (o == null) return null;
                 return serialize.apply(o);
             }
@@ -402,63 +413,66 @@ public interface Codec<T> extends ReaderWriter.DataReader<T>, ReaderWriter.DataW
 
     interface BinaryCodec<O extends Data.Binary> extends BinaryProperty<O> {
         @Override
-        default O read(Buf buf) {
+        default @Nullable O read(Buf buf) {
             return buf.bool() ? ctor(buf) : null;
         }
 
         O ctor(Buf buf);
 
         @Override
-        default Buf write(Buf buf, O v) {
+        default Buf write(Buf buf, @Nullable O v) {
             return v == null ? buf.bool(false) : buf.bool(true).apply(v::toBuf);
         }
 
-        default Buf buf(O v) {
+        default Buf buf(@Nullable O v) {
             return write(Buf.of(), v);
         }
 
     }
 
-    interface BinaryProperty<P> {
-        P read(Buf buf);
+    interface BinaryProperty<P extends @Nullable Object> {
+        @Nullable P read(Buf buf);
 
-        Buf write(Buf buf, P v);
+        Buf write(Buf buf, @Nullable P v);
 
-        default P read(Buffer buf, int offset) {
+        default @Nullable P read(Buffer buf, int offset) {
             return read(Buf.of(buf.slice(offset, buf.length())));
         }
 
-        default Buffer write(Buffer buf, int offset, P v) {
+        default Buffer write(Buffer buf, int offset, @Nullable P v) {
             write(Buf.of(buf.slice(offset, buf.length())), v);
             return buf;
         }
 
 
-        static <P> BinaryProperty.I<P> nullable(Function<Buf, P> r, BiFunction<Buf, P, Buf> w) {
+        static <P> BinaryProperty.I<P> nullable(Function<Buf, @Nullable P> r, BiFunction<Buf, @Nullable P, Buf> w) {
             return new I<>(Fn.nullable(r), Fn.nullable(w));
         }
 
-        static <P> BinaryProperty.I<P> nonNull(Function<Buf, P> r, BiFunction<Buf, P, Buf> w) {
+        static <P> BinaryProperty.I<P> nonNull(Function<Buf, @Nullable P> r, BiFunction<Buf, P, Buf> w) {
             return new I<>(Fn.nonNull(r), Fn.nonNull(w));
         }
 
-        record I<P>(Function<Buf, P> r, BiFunction<Buf, P, Buf> w) implements BinaryProperty<P> {
+        record I<P extends @Nullable Object>(Function<Buf, @Nullable P> r,
+                                             BiFunction<Buf, @Nullable P, Buf> w) implements BinaryProperty<P> {
 
             @Override
-            public P read(Buf buf) {
+            public @Nullable P read(Buf buf) {
                 return r.apply(buf);
             }
 
             @Override
-            public Buf write(Buf buf, P v) {
+            public Buf write(Buf buf, @Nullable P v) {
                 return w.apply(buf, v);
             }
 
 
             public <T> I<T> map(Function<T, P> w, Function<P, T> r) {
                 var wx = this.w;
-                return new I<>(this.r.andThen(r), (b, t) -> wx.apply(b, w.apply(t)));
+                var nw = Fn.nullable(w);
+                return new I<>(this.r.andThen(Fn.nullable(r)), (b, t) -> wx.apply(b, nw.apply(t)));
             }
+
         }
     }
 
@@ -546,11 +560,11 @@ public interface Codec<T> extends ReaderWriter.DataReader<T>, ReaderWriter.DataW
     }
 
     //region utilities
-    static <T> T prim(T v, String name) {
+    static <T> T prim(@Nullable T v, String name) {
         return Objects.requireNonNull(v, () -> "Corrupt primitive value of " + name);
     }
 
-    static Object jsonAny(@Nullable Object v) {
+    static @Nullable Object jsonAny(@Nullable Object v) {
         if (v == null) return null;
         else if (v instanceof Number ||
                  v instanceof Boolean ||
@@ -584,13 +598,13 @@ public interface Codec<T> extends ReaderWriter.DataReader<T>, ReaderWriter.DataW
 
     @SuppressWarnings("unchecked")
     @SneakyThrows
-    static <T> Class<T>[] clazz(String[] fqn) {
+    static <T> Class<T> @Nullable [] clazz(String @Nullable [] fqn) {
         return fqn == null ? null : (Class<T>[]) Arrays.stream(fqn).map(Codec::clazz).toArray(Class[]::new);
     }
 
     @SuppressWarnings("unchecked")
     @SneakyThrows
-    static <T> Class<T> clazz(String fqn) {
+    static <T> @Nullable Class<T> clazz(@Nullable String fqn) {
         return fqn == null ? null : (Class<T>) Class.forName(fqn, true, Codec.class.getClassLoader());
     }
 
@@ -608,30 +622,30 @@ public interface Codec<T> extends ReaderWriter.DataReader<T>, ReaderWriter.DataW
         return (T) clz.getConstructor(type).newInstance(values);
     }
 
-    static <T> String clazz(Class<T> fqn) {
+    static <T> @Nullable String clazz(@Nullable Class<T> fqn) {
         return fqn == null ? null : fqn.getCanonicalName();
     }
 
     @SneakyThrows
-    static <T extends Data> T data(@Nullable JsonObject v, @Nullable Class<T> type) {
+    static <T extends Data> @Nullable T data(@Nullable JsonObject v, @Nullable Class<T> type) {
         if (v == null) return null;
         if (type == null) type = clazz(Objects.requireNonNull(v.getString("$type")));
         return type.getConstructor(JsonObject.class).newInstance(v);
     }
 
-    static String charArray(char[] v) {
+    static @Nullable String charArray(char @Nullable [] v) {
         if (v == null) return null;
         if (v.length == 0) return "";
         return new String(v);
     }
 
-    static char[] charArray(String v) {
+    static char @Nullable [] charArray(@Nullable String v) {
         if (v == null) return null;
         if (v.isEmpty()) return new char[0];
         return v.toCharArray();
     }
 
-    static byte[] booleanArray(boolean[] v) {
+    static byte @Nullable [] booleanArray(boolean @Nullable [] v) {
         if (v == null) return null;
         if (v.length == 0) return new byte[0];
         int byteCount = (v.length + 7) / 8;
@@ -652,7 +666,7 @@ public interface Codec<T> extends ReaderWriter.DataReader<T>, ReaderWriter.DataW
         return bytes;
     }
 
-    static boolean[] booleanArray(byte[] v) {
+    static boolean @Nullable [] booleanArray(byte @Nullable [] v) {
         if (v == null) return null;
         if (v.length == 0) return new boolean[0];
         int length = ((v[0] & 0xFF) << 24) |
@@ -670,7 +684,7 @@ public interface Codec<T> extends ReaderWriter.DataReader<T>, ReaderWriter.DataW
         return o;
     }
 
-    static JsonArray shortArray(short[] shorts) {
+    static @Nullable JsonArray shortArray(short @Nullable [] shorts) {
         if (shorts == null) return null;
         if (shorts.length == 0) return new JsonArray();
         // Calculate required int array size (2 shorts per int + 1 for length)
@@ -694,7 +708,7 @@ public interface Codec<T> extends ReaderWriter.DataReader<T>, ReaderWriter.DataW
         return ints;
     }
 
-    static short[] shortArray(JsonArray ints) {
+    static short @Nullable [] shortArray(@Nullable JsonArray ints) {
         if (ints == null) return null;
         if (ints.isEmpty()) return new short[0];
         var length = ints.getInteger(0);
@@ -715,7 +729,7 @@ public interface Codec<T> extends ReaderWriter.DataReader<T>, ReaderWriter.DataW
         return shorts;
     }
 
-    static JsonArray intArray(int[] v) {
+    static @Nullable JsonArray intArray(int @Nullable [] v) {
         if (v == null) return null;
         if (v.length == 0) return new JsonArray();
         var o = new JsonArray(new ArrayList<>(v.length));
@@ -725,7 +739,7 @@ public interface Codec<T> extends ReaderWriter.DataReader<T>, ReaderWriter.DataW
         return o;
     }
 
-    static int[] intArray(JsonArray v) {
+    static int @Nullable [] intArray(@Nullable JsonArray v) {
         if (v == null) return null;
         if (v.isEmpty()) return new int[0];
         var o = new int[v.size()];
@@ -736,7 +750,7 @@ public interface Codec<T> extends ReaderWriter.DataReader<T>, ReaderWriter.DataW
     }
 
 
-    static JsonArray longArray(long[] v) {
+    static @Nullable JsonArray longArray(long @Nullable [] v) {
         if (v == null) return null;
         if (v.length == 0) return new JsonArray();
         var o = new JsonArray(new ArrayList<>(v.length));
@@ -746,7 +760,7 @@ public interface Codec<T> extends ReaderWriter.DataReader<T>, ReaderWriter.DataW
         return o;
     }
 
-    static long[] longArray(JsonArray v) {
+    static long @Nullable [] longArray(@Nullable JsonArray v) {
         if (v == null) return null;
         if (v.isEmpty()) return new long[0];
         var o = new long[v.size()];
@@ -756,7 +770,7 @@ public interface Codec<T> extends ReaderWriter.DataReader<T>, ReaderWriter.DataW
         return o;
     }
 
-    static JsonArray floatArray(float[] v) {
+    static @Nullable JsonArray floatArray(float @Nullable [] v) {
         if (v == null) return null;
         if (v.length == 0) return new JsonArray();
         var o = new JsonArray(new ArrayList<>(v.length));
@@ -766,7 +780,7 @@ public interface Codec<T> extends ReaderWriter.DataReader<T>, ReaderWriter.DataW
         return o;
     }
 
-    static float[] floatArray(JsonArray v) {
+    static float @Nullable [] floatArray(@Nullable JsonArray v) {
         if (v == null) return null;
         if (v.isEmpty()) return new float[0];
         var o = new float[v.size()];
@@ -777,7 +791,7 @@ public interface Codec<T> extends ReaderWriter.DataReader<T>, ReaderWriter.DataW
     }
 
 
-    static JsonArray doubleArray(double[] v) {
+    static @Nullable JsonArray doubleArray(double @Nullable [] v) {
         if (v == null) return null;
         if (v.length == 0) return new JsonArray();
         var o = new JsonArray(new ArrayList<>(v.length));
@@ -787,7 +801,7 @@ public interface Codec<T> extends ReaderWriter.DataReader<T>, ReaderWriter.DataW
         return o;
     }
 
-    static double[] doubleArray(JsonArray v) {
+    static double @Nullable [] doubleArray(@Nullable JsonArray v) {
         if (v == null) return null;
         if (v.isEmpty()) return new double[0];
         var o = new double[v.size()];
@@ -797,34 +811,34 @@ public interface Codec<T> extends ReaderWriter.DataReader<T>, ReaderWriter.DataW
         return o;
     }
 
-    interface JsonArrayWriter<T> {
-        void accept(int index, JsonArray ar, T value);
+    interface JsonArrayWriter<T extends @Nullable Object> {
+        void accept(int index, JsonArray ar, @Nullable T value);
     }
 
-    interface JsonObjectWriter<T> {
-        void accept(String key, JsonObject ar, T value);
+    interface JsonObjectWriter<T extends @Nullable Object> {
+        void accept(String key, JsonObject ar, @Nullable T value);
     }
 
-    interface JsonArrayReader<T> {
-        T apply(int index, JsonArray ar);
+    interface JsonArrayReader<T extends @Nullable Object> {
+        @Nullable T apply(int index, JsonArray ar);
     }
 
-    interface JsonObjectReader<T> {
-        T apply(String key, JsonObject ar);
+    interface JsonObjectReader<T extends @Nullable Object> {
+        @Nullable T apply(String key, JsonObject ar);
     }
 
-    static <T> JsonArray generic(T[] v, JsonArrayWriter<T> act) {
+    static <T> @Nullable JsonArray generic(@Nullable T @Nullable [] v, JsonArrayWriter<T> act) {
         if (v == null) return null;
         var a = new JsonArray(new ArrayList<>(v.length));
         for (int i = 0; i < v.length; i++) {
-            a.add(null);
+            a.addNull();
             act.accept(i, a, v[i]);
         }
         return a;
     }
 
     @SuppressWarnings("unchecked")
-    static <T> T[] generic(JsonArray v, Class<T> type, JsonArrayReader<T> act) {
+    static <T> @Nullable T @Nullable [] generic(@Nullable JsonArray v, Class<T> type, JsonArrayReader<T> act) {
         if (v == null) return null;
         var a = (T[]) Array.newInstance(type, v.size());
         if (v.isEmpty()) return a;
@@ -834,7 +848,7 @@ public interface Codec<T> extends ReaderWriter.DataReader<T>, ReaderWriter.DataW
         return a;
     }
 
-    static <T, R extends Collection<T>> R list(JsonArray v, Supplier<R> ctor, JsonArrayReader<T> reader) {
+    static <T, R extends Collection<@Nullable T>> @Nullable R list(@Nullable JsonArray v, Supplier<R> ctor, JsonArrayReader<T> reader) {
         if (v == null) return null;
         if (v.isEmpty()) return ctor.get();
         var r = ctor.get();
@@ -844,7 +858,7 @@ public interface Codec<T> extends ReaderWriter.DataReader<T>, ReaderWriter.DataW
         return r;
     }
 
-    static <T, R extends Collection<T>> JsonArray list(R v, JsonArrayWriter<T> act) {
+    static <T, R extends Collection<T>> @Nullable JsonArray list(@Nullable R v, JsonArrayWriter<T> act) {
         if (v == null) return null;
         if (v.isEmpty()) return JsonArray.of();
         var r = new JsonArray(new ArrayList<>(v.size()));
@@ -857,33 +871,33 @@ public interface Codec<T> extends ReaderWriter.DataReader<T>, ReaderWriter.DataW
     }
 
     /// read format `[[K,V],[K,V]...]`
-    static <K, V, M extends Map<K, V>> M map(JsonArray v, Supplier<M> ctor, JsonArrayReader<K> kAct, JsonArrayReader<V> vAct) {
+    static <K, V, M extends Map<K, @Nullable V>> @Nullable M map(@Nullable JsonArray v, Supplier<M> ctor, JsonArrayReader<K> kAct, JsonArrayReader<V> vAct) {
         if (v == null) return null;
         if (v.isEmpty()) return ctor.get();
         var r = ctor.get();
         for (int i = 0; i < v.size(); i++) {
             var j = v.getJsonArray(i);
-            r.put(kAct.apply(0, j), j.size() < 2 ? null : vAct.apply(1, j));
+            r.put(Objects.requireNonNull(kAct.apply(0, j)), j.size() < 2 ? null : vAct.apply(1, j));
         }
         return r;
     }
 
     /// formated as   `\[\[K,V\]\]`
-    static <K, V, M extends Map<K, V>> JsonArray map(M v, JsonArrayWriter<K> kAct, JsonArrayWriter<V> vAct) {
+    static <K, V, M extends Map<K, @Nullable V>> @Nullable JsonArray map(@Nullable M v, JsonArrayWriter<K> kAct, JsonArrayWriter<V> vAct) {
         if (v == null) return null;
         if (v.isEmpty()) return JsonArray.of();
         var r = new JsonArray(new ArrayList<>(v.size()));
         for (var e : v.entrySet()) {
             var j = new JsonArray(new ArrayList<>(2));
             var k = e.getKey();
-            var vl = e.getValue();
+            V vl = e.getValue();
             kAct.accept(0, j.addNull(), k);
             vAct.accept(1, j.addNull(), vl);
         }
         return r;
     }
 
-    static <V, O> V object(O o, Function<O, V> act) {
+    static <V, O> @Nullable V object(@Nullable O o, Function<O, V> act) {
         if (o == null) return null;
         return act.apply(o);
     }
@@ -899,7 +913,7 @@ public interface Codec<T> extends ReaderWriter.DataReader<T>, ReaderWriter.DataW
         return s.substring(i + 1);
     }
 
-    static boolean any(String value, String... values) {
+    static boolean any(@Nullable String value, String... values) {
         if (value == null) return false;
         for (var s : values) {
             if (s.equals(value)) return true;
@@ -907,7 +921,7 @@ public interface Codec<T> extends ReaderWriter.DataReader<T>, ReaderWriter.DataW
         return false;
     }
 
-    static Duration duration(String v) {
+    static @Nullable Duration duration(@Nullable String v) {
         if (v == null || v.isBlank()) return null;
         if (v.equals("0s")) return Duration.ZERO;
         v = v.strip();
@@ -952,7 +966,7 @@ public interface Codec<T> extends ReaderWriter.DataReader<T>, ReaderWriter.DataW
         }
     }
 
-    static String duration(Duration v) {
+    static @Nullable String duration(@Nullable Duration v) {
         if (v == null) return null;
         if (v.isZero()) return "0s";
         long nanos = v.toNanos();
@@ -980,7 +994,7 @@ public interface Codec<T> extends ReaderWriter.DataReader<T>, ReaderWriter.DataW
         }
     }
 
-    static Period period(String v) {
+    static @Nullable Period period(@Nullable String v) {
         if (v == null || v.isBlank()) return null;
         v = v.strip();
         var srcUnit = units(v);
@@ -1024,7 +1038,7 @@ public interface Codec<T> extends ReaderWriter.DataReader<T>, ReaderWriter.DataW
 
     }
 
-    static String period(Period v) {
+    static @Nullable String period(@Nullable Period v) {
         if (v == null) return null;
         if (v.isZero()) return "0d";
         var y = v.getYears();
@@ -1037,12 +1051,12 @@ public interface Codec<T> extends ReaderWriter.DataReader<T>, ReaderWriter.DataW
         return totalDays + "d";
     }
 
-    static <T extends Enum<T>> Integer enumerate(T v) {
+    static <T extends Enum<T>> @Nullable Integer enumerate(@Nullable T v) {
         if (v == null) return null;
         return v.ordinal();
     }
 
-    static <T extends Enum<T>> T enumerate(Integer v, Class<T> c) {
+    static <T extends Enum<T>> @Nullable T enumerate(@Nullable Integer v, Class<T> c) {
         if (v == null) return null;
         var x = c.getEnumConstants();
         var i = (int) v;
@@ -1050,12 +1064,12 @@ public interface Codec<T> extends ReaderWriter.DataReader<T>, ReaderWriter.DataW
         return x[i];
     }
 
-    static <T extends Enum<T>> String enumerateText(T v) {
+    static <T extends Enum<T>> @Nullable String enumerateText(@Nullable T v) {
         if (v == null) return null;
         return v.name();
     }
 
-    static <T extends Enum<T>> T enumerateText(String v, Class<T> c) {
+    static <T extends Enum<T>> @Nullable T enumerateText(@Nullable String v, Class<T> c) {
         if (v == null || v.isBlank()) return null;
         try {
             return Enum.valueOf(c, v);
@@ -1064,21 +1078,21 @@ public interface Codec<T> extends ReaderWriter.DataReader<T>, ReaderWriter.DataW
         }
     }
 
-    @SuppressWarnings({"OptionalUsedAsFieldOrParameterType", "OptionalAssignedToNull"})
-    static <V> JsonArray option(Optional<V> v, JsonArrayWriter<V> writer) {
-        if (v == null || v.isEmpty()) return null;
+    @SuppressWarnings({"OptionalUsedAsFieldOrParameterType"})
+    static <V> @Nullable JsonArray option(Optional<V> v, JsonArrayWriter<V> writer) {
+        if (v.isEmpty()) return null;
         JsonArray ar = new JsonArray();
         ar.addNull();
         writer.accept(0, ar, v.get());
         return ar;
     }
 
-    static <V> Optional<V> option(JsonArray v, JsonArrayReader<V> act) {
+    static <V> Optional<V> option(@Nullable JsonArray v, JsonArrayReader<V> act) {
         if (v == null || v.isEmpty()) return Optional.empty();
         return Optional.ofNullable(act.apply(0, v));
     }
 
-    static <V> JsonObject jsonMap(Map<String, V> v, JsonObjectWriter<V> act) {
+    static <V> @Nullable JsonObject jsonMap(@Nullable Map<String, @Nullable V> v, JsonObjectWriter<V> act) {
         if (v == null) return null;
         if (v.isEmpty()) return new JsonObject();
         var m = new JsonObject();
@@ -1086,10 +1100,10 @@ public interface Codec<T> extends ReaderWriter.DataReader<T>, ReaderWriter.DataW
         return m;
     }
 
-    static <V> Map<String, V> jsonMap(JsonObject v, JsonObjectReader<V> act) {
+    static <V> @Nullable Map<String, @Nullable V> jsonMap(@Nullable JsonObject v, JsonObjectReader<V> act) {
         if (v == null) return null;
         if (v.isEmpty()) return new HashMap<>();
-        var m = new HashMap<String, V>();
+        var m = new HashMap<String, @Nullable V>();
         for (var key : v.getMap().keySet()) {
             m.put(key, act.apply(key, v));
         }
@@ -1097,30 +1111,30 @@ public interface Codec<T> extends ReaderWriter.DataReader<T>, ReaderWriter.DataW
     }
 
 
-    static <T extends Enum<T>> Buf enumToBuf(T t) {
+    static <T extends Enum<T>> @Nullable Buf enumToBuf(@Nullable T t) {
         return t == null ? null : Buf.of().string(t.name());
     }
 
-    static <T extends Enum<T>> Function<Buf, T> enumFromBuf(Class<T> type) {
-        return b -> b == null ? null : Enum.valueOf(type, b.string());
+    static <T extends Enum<T>> Function<@Nullable Buf, @Nullable T> enumFromBuf(Class<T> type) {
+        return b -> b == null ? null : Enum.valueOf(type, Objects.requireNonNull(b.string()));
     }
 
-    static <T extends Data> Function<Buf, T> fromBuf(Function<JsonObject, T> ctor) {
+    static <T extends Data> Function<@Nullable Buf, @Nullable T> fromBuf(Function<JsonObject, T> ctor) {
         return b -> b == null ? null : ctor.apply(b.toJsonObject());
     }
 
-    static <T extends Data> Buf toBuf(T t) {
+    static <T extends Data> @Nullable Buf toBuf(@Nullable T t) {
         return t == null ? null : Buf.of(t.asJson().toBuffer());
     }
 
-    static <T, E extends Collection<T>> Function<Buf, E> collectionFromBuf(IntFunction<E> ctor, Function<Optional<Buf>, T> read) {
+    static <T, E extends Collection<T>> Function<@Nullable Buf, @Nullable E> collectionFromBuf(IntFunction<E> ctor, Function<Optional<Buf>, T> read) {
         return b -> {
             if (b == null) return null;
             return b.repeat(ctor, (bx) -> read.apply(Optional.ofNullable(bx.buf())));
         };
     }
 
-    static <T, E extends Collection<T>> Function<E, Buf> collectionToBuf(Function<T, Buf> write) {
+    static <T, E extends Collection<T>> Function<@Nullable E, @Nullable Buf> collectionToBuf(Function<@Nullable T, Buf> write) {
         return e -> {
             if (e == null) return null;
             var b = Buf.of();
@@ -1129,7 +1143,7 @@ public interface Codec<T> extends ReaderWriter.DataReader<T>, ReaderWriter.DataW
         };
     }
 
-    static <K, V, E extends Map<K, V>> Function<Buf, E> mapFromBuf(IntFunction<E> ctor, Function<Optional<Buf>, K> kr, Function<Optional<Buf>, V> vr) {
+    static <K, V, E extends Map<K, V>> Function<@Nullable Buf, @Nullable E> mapFromBuf(IntFunction<E> ctor, Function<Optional<Buf>, K> kr, Function<Optional<Buf>, V> vr) {
         return b -> {
             if (b == null) return null;
             return b.map(ctor,
@@ -1138,7 +1152,7 @@ public interface Codec<T> extends ReaderWriter.DataReader<T>, ReaderWriter.DataW
         };
     }
 
-    static <K, V, E extends Map<K, V>> Function<E, Buf> mapToBuf(Function<K, Buf> kw, Function<V, Buf> vw) {
+    static <K, V, E extends Map<K, @Nullable V>> Function<@Nullable E, @Nullable Buf> mapToBuf(Function<K, Buf> kw, Function<@Nullable V, Buf> vw) {
         return e -> {
             if (e == null) return null;
             var b = Buf.of();
@@ -1148,57 +1162,57 @@ public interface Codec<T> extends ReaderWriter.DataReader<T>, ReaderWriter.DataW
     }
 
 
-    static String time(LocalTime v) {
+    static @Nullable String time(@Nullable LocalTime v) {
         return v == null ? null : v.format(DateTimeFormatter.ISO_LOCAL_TIME);
     }
 
-    static LocalTime time(String v) {
+    static @Nullable LocalTime time(@Nullable String v) {
         return v == null || v.isBlank() ? null : LocalTime.from(DateTimeFormatter.ISO_LOCAL_TIME.parse(v));
     }
 
-    static String date(LocalDate v) {
+    static @Nullable String date(@Nullable LocalDate v) {
         return v == null ? null : v.format(DateTimeFormatter.ISO_LOCAL_DATE);
     }
 
-    static LocalDate date(String v) {
+    static @Nullable LocalDate date(@Nullable String v) {
         return v == null || v.isBlank() ? null : LocalDate.from(DateTimeFormatter.ISO_LOCAL_DATE.parse(v));
     }
 
-    static String datetime(LocalDateTime v) {
+    static @Nullable String datetime(@Nullable LocalDateTime v) {
         return v == null ? null : v.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
     }
 
-    static LocalDateTime datetime(String v) {
+    static @Nullable LocalDateTime datetime(@Nullable String v) {
         return v == null || v.isBlank() ? null : LocalDateTime.from(DateTimeFormatter.ISO_LOCAL_DATE_TIME.parse(v));
     }
 
-    static String timeTZ(OffsetTime v) {
+    static @Nullable String timeTZ(@Nullable OffsetTime v) {
         return v == null ? null : v.format(DateTimeFormatter.ISO_OFFSET_TIME);
     }
 
-    static OffsetTime timeTZ(String v) {
+    static @Nullable OffsetTime timeTZ(@Nullable String v) {
         return v == null || v.isBlank() ? null : OffsetTime.from(DateTimeFormatter.ISO_OFFSET_TIME.parse(v));
     }
 
-    static String datetimeTZ(OffsetDateTime v) {
+    static @Nullable String datetimeTZ(@Nullable OffsetDateTime v) {
         return v == null ? null : v.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
     }
 
-    static OffsetDateTime datetimeTZ(String v) {
+    static @Nullable OffsetDateTime datetimeTZ(@Nullable String v) {
         return v == null || v.isBlank() ? null : OffsetDateTime.from(DateTimeFormatter.ISO_OFFSET_DATE_TIME.parse(v));
     }
 
-    static UUID uuid(String v) {
+    static @Nullable UUID uuid(@Nullable String v) {
         return v == null || v.isBlank() ? null : UUID.fromString(v);
     }
 
-    static String uuid(UUID v) {
+    static @Nullable String uuid(@Nullable UUID v) {
         return v == null ? null : v.toString();
     }
     //endregion
 
     //region ToJS
-    static <T> void toJs(JsonObject out, BiFunction<JsonObject, String, T> value, String... key) {
+    static <T> void toJs(JsonObject out, BiFunction<JsonObject, String, @Nullable T> value, String... key) {
         T v = null;
         String k = null;
         for (var s : key) {
@@ -1216,7 +1230,7 @@ public interface Codec<T> extends ReaderWriter.DataReader<T>, ReaderWriter.DataW
         }
     }
 
-    static <T> void toJs(JsonObject out, BiFunction<JsonObject, String, T> value, String key, Supplier<T> def) {
+    static <T> void toJs(JsonObject out, BiFunction<JsonObject, String, @Nullable T> value, String key, Supplier<T> def) {
         T v = value.apply(out, key);
         if (v == null) v = def.get();
         if (v instanceof Long l) {
@@ -1224,7 +1238,7 @@ public interface Codec<T> extends ReaderWriter.DataReader<T>, ReaderWriter.DataW
         }
     }
 
-    static <T> void toJsOpt(JsonObject out, BiFunction<JsonObject, String, T> value, String key, Supplier<Optional<T>> def) {
+    static <T> void toJsOpt(JsonObject out, BiFunction<JsonObject, String, @Nullable T> value, String key, Supplier<Optional<T>> def) {
         T v = value.apply(out, key);
         if (v == null) v = def.get().orElse(null);
         if (v instanceof Long l) {
@@ -1232,7 +1246,7 @@ public interface Codec<T> extends ReaderWriter.DataReader<T>, ReaderWriter.DataW
         }
     }
 
-    static <K, T> void fromJs(JsonObject out, BiFunction<JsonObject, String, K> value, Function<K, T> parse, String... key) {
+    static <K, T> void fromJs(JsonObject out, BiFunction<JsonObject, String, @Nullable K> value, Function<K, T> parse, String... key) {
         K v = null;
         String k = null;
         for (var s : key) {
@@ -1247,8 +1261,8 @@ public interface Codec<T> extends ReaderWriter.DataReader<T>, ReaderWriter.DataW
         }
     }
 
-    static <K, T> void fromJs(JsonObject out, BiFunction<JsonObject, String, K> value, Function<K, T> parse, String key, Supplier<T> def) {
-        var v = value.apply(out, key);
+    static <K, T> void fromJs(JsonObject out, BiFunction<JsonObject, String, @Nullable K> value, Function<K, T> parse, String key, Supplier<T> def) {
+        K v = value.apply(out, key);
         if (v == null) {
             out.put(key, def.get());
         } else {
@@ -1257,8 +1271,8 @@ public interface Codec<T> extends ReaderWriter.DataReader<T>, ReaderWriter.DataW
 
     }
 
-    static <K, T> void fromJsOpt(JsonObject out, BiFunction<JsonObject, String, K> value, Function<K, T> parse, String key, Supplier<Optional<T>> def) {
-        var v = value.apply(out, key);
+    static <K, T> void fromJsOpt(JsonObject out, BiFunction<JsonObject, String, @Nullable K> value, Function<K, T> parse, String key, Supplier<Optional<T>> def) {
+        K v = value.apply(out, key);
         if (v == null) {
             out.put(key, def.get().orElse(null));
         } else {
@@ -1289,11 +1303,11 @@ public interface Codec<T> extends ReaderWriter.DataReader<T>, ReaderWriter.DataW
     BinaryProperty.I<String> STRING_BINARY = BinaryProperty.nullable(Buf::string, Buf::string);
     BinaryProperty.I<byte[]> BYTES_BINARY = BinaryProperty.nullable(Buf::binary, Buf::binary);
     BinaryProperty.I<Buffer> BUFFER_BINARY = BinaryProperty.nullable(Buf::buffer, Buf::buffer);
-    BinaryProperty.I<Instant> INSTANT_BINARY = LONG_OBJECT_BINARY.map(Instant::toEpochMilli, Instant::ofEpochMilli);
-    BinaryProperty.I<JsonObject> JSON_OBJECT_BINARY = BUFFER_BINARY.map(JsonObject::toBuffer, Buffer::toJsonObject);
-    BinaryProperty.I<JsonArray> JSON_ARRAY_BINARY = BUFFER_BINARY.map(JsonArray::toBuffer, Buffer::toJsonArray);
+    BinaryProperty.I<Instant> INSTANT_BINARY = LONG_OBJECT_BINARY.map(Fn.nullable(Instant::toEpochMilli), Fn.nullable(Instant::ofEpochMilli));
+    BinaryProperty.I<JsonObject> JSON_OBJECT_BINARY = BUFFER_BINARY.map(Fn.nullable(JsonObject::toBuffer), Fn.nullable(Buffer::toJsonObject));
+    BinaryProperty.I<JsonArray> JSON_ARRAY_BINARY = BUFFER_BINARY.map(Fn.nullable(JsonArray::toBuffer), Fn.nullable(Buffer::toJsonArray));
 
-    static <T extends Data> Buf binaryData(Buf b, T v, @vat.api.meta.Nullable Class<T> type) {
+    static <T extends Data> Buf binaryData(Buf b, @Nullable T v, @Nullable Class<T> type) {
         if (type == null) return v == null
                 ? b.string(null)
                 : v instanceof Data.Binary x
@@ -1307,12 +1321,12 @@ public interface Codec<T> extends ReaderWriter.DataReader<T>, ReaderWriter.DataW
 
     @SuppressWarnings("unchecked")
     @SneakyThrows
-    static <T extends Data> T binaryData(Buf b, @vat.api.meta.Nullable Class<T> type) {
+    static <T extends Data> @Nullable T binaryData(Buf b, @Nullable Class<T> type) {
         var clz = b.string();
         if (clz == null) return null;
         var jo = b.bool();
         if (jo) {
-            var o = b.buffer().toJsonObject();
+            @SuppressWarnings("DataFlowIssue") var o = b.buffer().toJsonObject();
             var clazz = clazz(clz);
             return (T) clazz.getConstructor(JsonObject.class).newInstance(o);
         } else {
@@ -1321,41 +1335,47 @@ public interface Codec<T> extends ReaderWriter.DataReader<T>, ReaderWriter.DataW
         }
     }
 
-    static <T extends Enum<T>> Buf binaryEnum(Buf b, T e) {
+    static <T extends Enum<T>> Buf binaryEnum(Buf b, @Nullable T e) {
         return e == null ? b.v32(-1) : b.v32(e.ordinal());
     }
 
-    static <T extends Enum<T>> T binaryEnum(Buf b, Class<T> type) {
+    static <T extends Enum<T>> @Nullable T binaryEnum(Buf b, Class<T> type) {
         var x = b.v32();
         return x < 0 ? null : type.getEnumConstants()[x];
     }
 
-    static <T extends Enum<T>> Buf binaryEnumText(Buf b, T e) {
+    static <T extends Enum<T>> Buf binaryEnumText(Buf b, @Nullable T e) {
         return e == null ? b.string("") : b.string(e.name());
     }
 
-    static <T extends Enum<T>> T binaryEnumText(Buf b, Class<T> type) {
+    static <T extends Enum<T>> @Nullable T binaryEnumText(Buf b, Class<T> type) {
         var x = b.string();
-        return x.isEmpty() ? null : Enum.valueOf(type, x);
+        return x == null || x.isEmpty() ? null : Enum.valueOf(type, x);
     }
 
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
-    static <T> Buf binaryOption(Buf b, Optional<T> v, BiFunction<Buf, T, Buf> act) {
+    static <T> Buf binaryOption(Buf b, Optional<T> v, BiFunction<Buf, @Nullable T, Buf> act) {
         return act.apply(b, v.orElse(null));
     }
 
-    static <T> Optional<T> binaryOption(Buf b, Function<Buf, T> act) {
+    static <T> Optional<T> binaryOption(Buf b, Function<Buf, @Nullable T> act) {
         return Optional.ofNullable(act.apply(b));
     }
 
-    static <T extends Data.Binary> Function<Buf, T> binaryFromBuf(Function<Buf, T> ctor) {
+    static <T extends Data.Binary> Function<@Nullable Buf, @Nullable T> binaryFromBuf(Function<Buf, T> ctor) {
         return b -> b == null ? null : ctor.apply(b);
     }
 
-    static <T extends Data.Binary> Buf binaryToBuf(T t) {
+    static <T extends Data.Binary> @Nullable Buf binaryToBuf(@Nullable T t) {
         return t == null ? null : t.toBuf(Buf.of());
     }
 
     //endregion binary
 
+    static <A extends A0, A0 extends Data, B extends B0, B0 extends Data> B convert(A a, Codec.DataCodec<? extends A, A0> ac, Codec.DataCodec<? extends B, B0> bc) {
+        return Objects.requireNonNull(bc.get(Objects.requireNonNull(ac.from(a),"missing source data").asJson()),"missing target data");
+    }
+    static <A extends A0, A0 extends Data, B extends B0, B0 extends Data> Function<A,B> converter( Codec.DataCodec<? extends A, A0> ac, Codec.DataCodec<? extends B, B0> bc) {
+        return a->Objects.requireNonNull(bc.get(Objects.requireNonNull(ac.from(a),"missing source data").asJson()),"missing target data");
+    }
 }

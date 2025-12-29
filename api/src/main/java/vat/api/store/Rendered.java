@@ -2,6 +2,7 @@ package vat.api.store;
 
 import lombok.ToString;
 import lombok.experimental.Delegate;
+import org.jspecify.annotations.Nullable;
 
 import java.util.HashMap;
 import java.util.List;
@@ -23,14 +24,17 @@ public @ToString class Rendered implements Renderer {
     public final Map<String, PlaceHolder> placeHolder = new HashMap<>();
 
     /// object reader
+    @Nullable
     public Reader<?> reader;
     /// current render stage
+    @Nullable
     public Stage stage;
     /// parameter for batch executing;
+    @Nullable
     public List<Map<String, Object>> parameters;
 
 
-    public final Stage stage() {
+    public final  @Nullable Stage stage() {
         return stage;
     }
 
@@ -38,7 +42,7 @@ public @ToString class Rendered implements Renderer {
         this.dialect = dialect;
     }
 
-    public final Writer render(Writer w, Object value) {
+    public final Writer render(Writer w, @Nullable Object value) {
         switch (value) {
             case Renderable r -> r._render(this, w);
             case null -> w.w(dialect.valueNull());

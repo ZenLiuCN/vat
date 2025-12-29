@@ -2,6 +2,7 @@ package vat.api.metadata;
 
 import io.vertx.core.Future;
 import io.vertx.core.json.JsonObject;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import vat.api.Data;
@@ -11,8 +12,8 @@ import vat.api.implement.Codec.DataProperty;
 import vat.api.implement.CommonCodec;
 import vat.api.meta.Computed;
 import vat.api.meta.Enhance;
-import vat.api.meta.Nullable;
 import vat.api.trait.Applicative;
+import vat.api.utils.Fn;
 
 import java.io.IOException;
 import java.nio.file.FileSystems;
@@ -21,26 +22,30 @@ import java.nio.file.Paths;
 import java.util.*;
 import java.util.function.Consumer;
 import java.util.function.Function;
-import java.util.function.UnaryOperator;
 import java.util.stream.StreamSupport;
 
+import static java.util.Objects.requireNonNull;
 import static vat.api.implement.Codec.data;
 import static vat.api.implement.Codec.list;
+import static vat.api.utils.Fn.Many.elementNonNull;
+import static vat.api.utils.Fn.Many.elementsNonNull;
 
 
 ///
 /// @author Zen.Liu
 /// @since 2025-11-05
 
-
+@SuppressWarnings({"unused", "UnusedReturnValue"})
 public interface MetaData {
     Logger log = LoggerFactory.getLogger(MetaData.class);
 
-    String identity();
+    /// building time nullable
+    @Nullable String identity();
 
-    String name();
+    /// building time nullable
+    @Nullable String name();
 
-    String description();
+    @Nullable String description();
 
     MetaData identity(String v);
 
@@ -56,6 +61,7 @@ public interface MetaData {
 
     record NumericType(int bits, boolean floatingPoint, String name, String identity,
                        String description) implements Type {
+
         public NumericType(JsonObject j) {
             this(j.getInteger("bits")
                     , j.getBoolean("floatingPoint", false)
@@ -163,7 +169,7 @@ public interface MetaData {
 
     record OptionalType(Type type) implements Type {
         public OptionalType(JsonObject j) {
-            this((Type) vat.api.implement.Codec.data(j, null));
+            this((Type) requireNonNull(data(j, null)));
         }
 
         @Override
@@ -185,6 +191,7 @@ public interface MetaData {
         }
 
         @Override
+        @Nullable
         public String description() {
             return type.description();
         }
@@ -255,7 +262,7 @@ public interface MetaData {
 
             @Override
             public MetaData.Type element() {
-                return Codec.ACTIVATE_API_METADATA_METADATA__TYPE.get(this.asJson, "element");
+                return requireNonNull(Codec.ACTIVATE_API_METADATA_METADATA__TYPE.get(this.asJson, "element"));
             }
 
             public Meta element(MetaData.Type v) {
@@ -263,14 +270,14 @@ public interface MetaData {
                 return this;
             }
 
-            public Meta elementDo(UnaryOperator<MetaData.@Nullable Type> act) {
+            public Meta elementDo(Fn.UnaryOperate<MetaData.Type> act) {
                 var x = act.apply(element());
                 return element(x);
             }
 
             @Override
             public boolean nullable() {
-                return vat.api.implement.Codec.BOOLEAN.get(this.asJson, "nullable");
+                return Boolean.TRUE.equals(vat.api.implement.Codec.BOOLEAN.get(this.asJson, "nullable"));
             }
 
             public Meta nullable(boolean v) {
@@ -280,7 +287,7 @@ public interface MetaData {
 
             @Override
             public String identity() {
-                return vat.api.implement.Codec.STRING.get(this.asJson, "identity");
+                return requireNonNull(vat.api.implement.Codec.STRING.get(this.asJson, "identity"));
             }
 
             public Meta identity(String v) {
@@ -290,7 +297,7 @@ public interface MetaData {
 
             @Override
             public String name() {
-                return vat.api.implement.Codec.STRING.get(this.asJson, "name");
+                return requireNonNull(vat.api.implement.Codec.STRING.get(this.asJson, "name"));
             }
 
             public Meta name(String v) {
@@ -299,8 +306,9 @@ public interface MetaData {
             }
 
             @Override
+            @Nullable
             public String description() {
-                return vat.api.implement.Codec.STRING.get(this.asJson, "description");
+                return (vat.api.implement.Codec.STRING.get(this.asJson, "description"));
             }
 
             public Meta description(String v) {
@@ -310,7 +318,7 @@ public interface MetaData {
 
             @Override
             public boolean unique() {
-                return vat.api.implement.Codec.BOOLEAN.get(this.asJson, "unique");
+                return Boolean.TRUE.equals(vat.api.implement.Codec.BOOLEAN.get(this.asJson, "unique"));
             }
 
             public Meta unique(boolean v) {
@@ -348,7 +356,7 @@ public interface MetaData {
 
             @Override
             public MetaData.Type element() {
-                return Codec.ACTIVATE_API_METADATA_METADATA__TYPE.get(this.asJson, "element");
+                return requireNonNull(Codec.ACTIVATE_API_METADATA_METADATA__TYPE.get(this.asJson, "element"));
             }
 
             public Meta element(MetaData.Type v) {
@@ -356,14 +364,14 @@ public interface MetaData {
                 return this;
             }
 
-            public Meta elementDo(UnaryOperator<MetaData.@Nullable Type> act) {
+            public Meta elementDo(Fn.UnaryOperate<MetaData.Type> act) {
                 var x = act.apply(element());
                 return element(x);
             }
 
             @Override
             public boolean nullable() {
-                return vat.api.implement.Codec.BOOLEAN.get(this.asJson, "nullable");
+                return Boolean.TRUE.equals(vat.api.implement.Codec.BOOLEAN.get(this.asJson, "nullable"));
             }
 
             public Meta nullable(boolean v) {
@@ -373,7 +381,7 @@ public interface MetaData {
 
             @Override
             public String identity() {
-                return vat.api.implement.Codec.STRING.get(this.asJson, "identity");
+                return requireNonNull(vat.api.implement.Codec.STRING.get(this.asJson, "identity"));
             }
 
             public Meta identity(String v) {
@@ -383,7 +391,7 @@ public interface MetaData {
 
             @Override
             public String name() {
-                return vat.api.implement.Codec.STRING.get(this.asJson, "name");
+                return requireNonNull(vat.api.implement.Codec.STRING.get(this.asJson, "name"));
             }
 
             public Meta name(String v) {
@@ -392,8 +400,9 @@ public interface MetaData {
             }
 
             @Override
+            @Nullable
             public String description() {
-                return vat.api.implement.Codec.STRING.get(this.asJson, "description");
+                return (vat.api.implement.Codec.STRING.get(this.asJson, "description"));
             }
 
             public Meta description(String v) {
@@ -435,7 +444,7 @@ public interface MetaData {
 
             @Override
             public String identity() {
-                return vat.api.implement.Codec.STRING.get(this.asJson, "identity");
+                return requireNonNull(vat.api.implement.Codec.STRING.get(this.asJson, "identity"));
             }
 
             public Meta identity(String v) {
@@ -445,7 +454,7 @@ public interface MetaData {
 
             @Override
             public String name() {
-                return vat.api.implement.Codec.STRING.get(this.asJson, "name");
+                return requireNonNull(vat.api.implement.Codec.STRING.get(this.asJson, "name"));
             }
 
             public Meta name(String v) {
@@ -454,8 +463,9 @@ public interface MetaData {
             }
 
             @Override
+            @Nullable
             public String description() {
-                return vat.api.implement.Codec.STRING.get(this.asJson, "description");
+                return (vat.api.implement.Codec.STRING.get(this.asJson, "description"));
             }
 
             public Meta description(String v) {
@@ -465,7 +475,7 @@ public interface MetaData {
 
             @Override
             public MetaData.Type key() {
-                return Codec.ACTIVATE_API_METADATA_METADATA__TYPE.get(this.asJson, "key");
+                return requireNonNull(Codec.ACTIVATE_API_METADATA_METADATA__TYPE.get(this.asJson, "key"));
             }
 
             public Meta key(MetaData.Type v) {
@@ -473,14 +483,14 @@ public interface MetaData {
                 return this;
             }
 
-            public Meta keyDo(UnaryOperator<MetaData.@Nullable Type> act) {
+            public Meta keyDo(Fn.UnaryOperate<MetaData.Type> act) {
                 var x = act.apply(key());
                 return key(x);
             }
 
             @Override
             public MetaData.Type value() {
-                return Codec.ACTIVATE_API_METADATA_METADATA__TYPE.get(this.asJson, "value");
+                return requireNonNull(Codec.ACTIVATE_API_METADATA_METADATA__TYPE.get(this.asJson, "value"));
             }
 
             public Meta value(MetaData.Type v) {
@@ -488,7 +498,7 @@ public interface MetaData {
                 return this;
             }
 
-            public Meta valueDo(UnaryOperator<MetaData.@Nullable Type> act) {
+            public Meta valueDo(Fn.UnaryOperate<MetaData.Type> act) {
                 var x = act.apply(value());
                 return value(x);
             }
@@ -502,7 +512,7 @@ public interface MetaData {
     }
 
     @Enhance
-    interface ReferenceType extends Data,MetaData, Type {
+    interface ReferenceType extends Data, MetaData, Type {
         String provider();
 
         record Meta(JsonObject asJson) implements MetaData.ReferenceType, Applicative<Meta> {
@@ -523,7 +533,7 @@ public interface MetaData {
 
             @Override
             public String identity() {
-                return vat.api.implement.Codec.STRING.get(this.asJson, "identity");
+                return requireNonNull(vat.api.implement.Codec.STRING.get(this.asJson, "identity"));
             }
 
             public Meta identity(String v) {
@@ -533,7 +543,7 @@ public interface MetaData {
 
             @Override
             public String name() {
-                return vat.api.implement.Codec.STRING.get(this.asJson, "name");
+                return requireNonNull(vat.api.implement.Codec.STRING.get(this.asJson, "name"));
             }
 
             public Meta name(String v) {
@@ -542,19 +552,20 @@ public interface MetaData {
             }
 
             @Override
+            @Nullable
             public String description() {
-                return vat.api.implement.Codec.STRING.get(this.asJson, "description");
+                return (vat.api.implement.Codec.STRING.get(this.asJson, "description"));
             }
 
             public Meta description(String v) {
-                var copy=asJson.copy();
+                var copy = asJson.copy();
                 vat.api.implement.Codec.STRING.set(copy, "description", v);
                 return new Meta(copy);
             }
 
             @Override
             public String provider() {
-                return vat.api.implement.Codec.STRING.get(this.asJson, "provider");
+                return requireNonNull(vat.api.implement.Codec.STRING.get(this.asJson, "provider"));
             }
 
             public Meta provider(String v) {
@@ -591,7 +602,7 @@ public interface MetaData {
 
             @Override
             public String text() {
-                return vat.api.implement.Codec.STRING.get(this.asJson, "text");
+                return requireNonNull(vat.api.implement.Codec.STRING.get(this.asJson, "text"));
             }
 
             public Meta text(String v) {
@@ -601,7 +612,7 @@ public interface MetaData {
 
             @Override
             public long ordinal() {
-                return vat.api.implement.Codec.LONG.get(this.asJson, "ordinal");
+                return requireNonNull(vat.api.implement.Codec.LONG.get(this.asJson, "ordinal"));
             }
 
             public Meta ordinal(long v) {
@@ -616,7 +627,7 @@ public interface MetaData {
 
             @Override
             public String identity() {
-                return vat.api.implement.Codec.STRING.get(this.asJson, "identity");
+                return requireNonNull(vat.api.implement.Codec.STRING.get(this.asJson, "identity"));
             }
 
             public Meta identity(String v) {
@@ -626,7 +637,7 @@ public interface MetaData {
 
             @Override
             public String name() {
-                return vat.api.implement.Codec.STRING.get(this.asJson, "name");
+                return requireNonNull(vat.api.implement.Codec.STRING.get(this.asJson, "name"));
             }
 
             public Meta name(String v) {
@@ -635,8 +646,9 @@ public interface MetaData {
             }
 
             @Override
+            @Nullable
             public String description() {
-                return vat.api.implement.Codec.STRING.get(this.asJson, "description");
+                return (vat.api.implement.Codec.STRING.get(this.asJson, "description"));
             }
 
             public Meta description(String v) {
@@ -655,7 +667,7 @@ public interface MetaData {
     }
 
     @Enhance
-    interface EnumerationType extends Data,Type  {
+    interface EnumerationType extends Data, Type {
         List<EnumerationEntry> candidates();
 
         record Meta(JsonObject asJson) implements MetaData.EnumerationType, Applicative<Meta> {
@@ -676,7 +688,7 @@ public interface MetaData {
 
             @Override
             public String identity() {
-                return vat.api.implement.Codec.STRING.get(this.asJson, "identity");
+                return requireNonNull(vat.api.implement.Codec.STRING.get(this.asJson, "identity"));
             }
 
             public Meta identity(String v) {
@@ -686,7 +698,7 @@ public interface MetaData {
 
             @Override
             public String name() {
-                return vat.api.implement.Codec.STRING.get(this.asJson, "name");
+                return requireNonNull(vat.api.implement.Codec.STRING.get(this.asJson, "name"));
             }
 
             public Meta name(String v) {
@@ -695,8 +707,9 @@ public interface MetaData {
             }
 
             @Override
+            @Nullable
             public String description() {
-                return vat.api.implement.Codec.STRING.get(this.asJson, "description");
+                return (vat.api.implement.Codec.STRING.get(this.asJson, "description"));
             }
 
             public Meta description(String v) {
@@ -706,7 +719,7 @@ public interface MetaData {
 
             @Override
             public List<MetaData.EnumerationEntry> candidates() {
-                return Codec.LIST_$$ACTIVATE_API_METADATA_METADATA__ENUMERATION_ENTRY.get(this.asJson, "candidates");
+                return elementsNonNull(Codec.LIST_$$ACTIVATE_API_METADATA_METADATA__ENUMERATION_ENTRY.get(this.asJson, "candidates"));
             }
 
             public Meta candidates(List<MetaData.EnumerationEntry> v) {
@@ -714,6 +727,7 @@ public interface MetaData {
                 return this;
             }
 
+            @SuppressWarnings("OptionalOfNullableMisuse")
             public Meta candidatesDo(Consumer<List<MetaData.EnumerationEntry>> act) {
                 var x = Optional.ofNullable(candidates()).orElseGet(ArrayList::new);
                 act.accept(x);
@@ -752,7 +766,7 @@ public interface MetaData {
 
             @Override
             public String identity() {
-                return vat.api.implement.Codec.STRING.get(this.asJson, "identity");
+                return requireNonNull(vat.api.implement.Codec.STRING.get(this.asJson, "identity"));
             }
 
             public Meta identity(String v) {
@@ -762,7 +776,7 @@ public interface MetaData {
 
             @Override
             public String name() {
-                return vat.api.implement.Codec.STRING.get(this.asJson, "name");
+                return requireNonNull(vat.api.implement.Codec.STRING.get(this.asJson, "name"));
             }
 
             public Meta name(String v) {
@@ -771,6 +785,7 @@ public interface MetaData {
             }
 
             @Override
+            @Nullable
             public String description() {
                 return vat.api.implement.Codec.STRING.get(this.asJson, "description");
             }
@@ -782,7 +797,7 @@ public interface MetaData {
 
             @Override
             public boolean construct() {
-                return vat.api.implement.Codec.BOOLEAN.get(this.asJson, "construct");
+                return Boolean.TRUE.equals(vat.api.implement.Codec.BOOLEAN.get(this.asJson, "construct"));
             }
 
             public Meta construct(boolean v) {
@@ -802,9 +817,9 @@ public interface MetaData {
 
     @Enhance
     interface Property extends Data, MetaData {
-        List<Functor> interceptors();
+        @Nullable List<Functor> interceptors();
 
-        List<Functor> validators();
+        @Nullable List<Functor> validators();
 
         String mappings();
 
@@ -830,7 +845,7 @@ public interface MetaData {
 
             @Override
             public String identity() {
-                return vat.api.implement.Codec.STRING.get(this.asJson, "identity");
+                return requireNonNull(vat.api.implement.Codec.STRING.get(this.asJson, "identity"));
             }
 
             public Meta identity(String v) {
@@ -840,7 +855,7 @@ public interface MetaData {
 
             @Override
             public String name() {
-                return vat.api.implement.Codec.STRING.get(this.asJson, "name");
+                return requireNonNull(vat.api.implement.Codec.STRING.get(this.asJson, "name"));
             }
 
             public Meta name(String v) {
@@ -849,6 +864,7 @@ public interface MetaData {
             }
 
             @Override
+            @Nullable
             public String description() {
                 return vat.api.implement.Codec.STRING.get(this.asJson, "description");
             }
@@ -859,14 +875,16 @@ public interface MetaData {
             }
 
             @Override
+            @Nullable
             public List<MetaData.Functor> interceptors() {
-                return Codec.LIST_$$ACTIVATE_API_METADATA_METADATA__FUNCTOR.get(this.asJson, "interceptors");
+                return elementNonNull(Codec.LIST_$$ACTIVATE_API_METADATA_METADATA__FUNCTOR.get(this.asJson, "interceptors"));
             }
 
             public Meta interceptors(List<MetaData.Functor> v) {
                 Codec.LIST_$$ACTIVATE_API_METADATA_METADATA__FUNCTOR.set(this.asJson, "interceptors", v);
                 return this;
             }
+
 
             public Meta interceptorsDo(Consumer<List<MetaData.Functor>> act) {
                 var x = Optional.ofNullable(interceptors()).orElseGet(ArrayList::new);
@@ -876,8 +894,9 @@ public interface MetaData {
             }
 
             @Override
+            @Nullable
             public List<MetaData.Functor> validators() {
-                return Codec.LIST_$$ACTIVATE_API_METADATA_METADATA__FUNCTOR.get(this.asJson, "validators");
+                return elementNonNull(Codec.LIST_$$ACTIVATE_API_METADATA_METADATA__FUNCTOR.get(this.asJson, "validators"));
             }
 
             public Meta validators(List<MetaData.Functor> v) {
@@ -894,7 +913,7 @@ public interface MetaData {
 
             @Override
             public String mappings() {
-                return vat.api.implement.Codec.STRING.get(this.asJson, "mappings");
+                return requireNonNull(vat.api.implement.Codec.STRING.get(this.asJson, "mappings"));
             }
 
             public Meta mappings(String v) {
@@ -904,7 +923,7 @@ public interface MetaData {
 
             @Override
             public MetaData.Type product() {
-                return Codec.ACTIVATE_API_METADATA_METADATA__TYPE.get(this.asJson, "product");
+                return requireNonNull(Codec.ACTIVATE_API_METADATA_METADATA__TYPE.get(this.asJson, "product"));
             }
 
             public Meta product(MetaData.Type v) {
@@ -912,13 +931,13 @@ public interface MetaData {
                 return this;
             }
 
-            public Meta productDo(UnaryOperator<MetaData.@Nullable Type> act) {
+            public Meta productDo(Fn.UnaryOperate<MetaData.Type> act) {
                 var x = act.apply(product());
                 return product(x);
             }
 
             public boolean optional() {
-                return vat.api.implement.Codec.BOOLEAN.get(asJson, "optional");
+                return Boolean.TRUE.equals(vat.api.implement.Codec.BOOLEAN.get(asJson, "optional"));
             }
 
             public Meta optional(boolean v) {
@@ -942,21 +961,21 @@ public interface MetaData {
 
         boolean optional();
 
-        List<String> unique();
+        @Nullable List<String> unique();
 
-        List<String> index();
+        @Nullable List<String> index();
 
-        Integer size();
+        @Nullable Integer size();
 
-        Integer max();
+        @Nullable Integer max();
 
-        Integer min();
+        @Nullable Integer min();
 
-        Integer precision();
+        @Nullable Integer precision();
 
-        Integer scale();
+        @Nullable Integer scale();
 
-        Boolean enumName();
+        @Nullable Boolean enumName();
 
         @Nullable
         Functor interceptor();
@@ -981,7 +1000,7 @@ public interface MetaData {
 
             @Override
             public String identity() {
-                return vat.api.implement.Codec.STRING.get(this.asJson, "identity");
+                return requireNonNull(vat.api.implement.Codec.STRING.get(this.asJson, "identity"));
             }
 
             public Meta identity(String v) {
@@ -991,7 +1010,7 @@ public interface MetaData {
 
             @Override
             public String name() {
-                return vat.api.implement.Codec.STRING.get(this.asJson, "name");
+                return requireNonNull(vat.api.implement.Codec.STRING.get(this.asJson, "name"));
             }
 
             public Meta name(String v) {
@@ -1000,6 +1019,7 @@ public interface MetaData {
             }
 
             @Override
+            @Nullable
             public String description() {
                 return vat.api.implement.Codec.STRING.get(this.asJson, "description");
             }
@@ -1011,7 +1031,7 @@ public interface MetaData {
 
             @Override
             public String column() {
-                return vat.api.implement.Codec.STRING.get(this.asJson, "column");
+                return requireNonNull(vat.api.implement.Codec.STRING.get(this.asJson, "column"));
             }
 
             public Meta column(String v) {
@@ -1020,8 +1040,9 @@ public interface MetaData {
             }
 
             @Override
+            @Nullable
             public List<String> unique() {
-                return CommonCodec.LIST_$$STRING.get(this.asJson, "unique");
+                return elementNonNull(CommonCodec.LIST_$$STRING.get(this.asJson, "unique"));
             }
 
             public Meta unique(List<String> v) {
@@ -1037,8 +1058,9 @@ public interface MetaData {
             }
 
             @Override
+            @Nullable
             public List<String> index() {
-                return CommonCodec.LIST_$$STRING.get(this.asJson, "index");
+                return elementNonNull(CommonCodec.LIST_$$STRING.get(this.asJson, "index"));
             }
 
             public Meta index(List<String> v) {
@@ -1054,6 +1076,7 @@ public interface MetaData {
             }
 
             @Override
+            @Nullable
             public Integer size() {
                 return vat.api.implement.Codec.INTEGER.get(this.asJson, "size");
             }
@@ -1064,6 +1087,7 @@ public interface MetaData {
             }
 
             @Override
+            @Nullable
             public Integer precision() {
                 return vat.api.implement.Codec.INTEGER.get(this.asJson, "precision");
             }
@@ -1074,6 +1098,7 @@ public interface MetaData {
             }
 
             @Override
+            @Nullable
             public Integer scale() {
                 return vat.api.implement.Codec.INTEGER.get(this.asJson, "scale");
             }
@@ -1084,6 +1109,7 @@ public interface MetaData {
             }
 
             @Override
+            @Nullable
             public Integer max() {
                 return vat.api.implement.Codec.INTEGER.get(this.asJson, "max");
             }
@@ -1094,6 +1120,7 @@ public interface MetaData {
             }
 
             @Override
+            @Nullable
             public Integer min() {
                 return vat.api.implement.Codec.INTEGER.get(this.asJson, "min");
             }
@@ -1104,7 +1131,7 @@ public interface MetaData {
             }
 
             public boolean optional() {
-                return vat.api.implement.Codec.BOOLEAN.get(asJson, "optional");
+                return Boolean.TRUE.equals(vat.api.implement.Codec.BOOLEAN.get(asJson, "optional"));
             }
 
             public Meta optional(boolean v) {
@@ -1113,6 +1140,7 @@ public interface MetaData {
             }
 
             @Override
+            @Nullable
             public Functor interceptor() {
                 return Codec.FUNCTOR_DATA.get(this.asJson.getJsonObject("interceptor"));
             }
@@ -1123,6 +1151,7 @@ public interface MetaData {
             }
 
             @Override
+            @Nullable
             public Boolean enumName() {
                 return vat.api.implement.Codec.BOOLEAN.get(this.asJson, "enumName");
             }
@@ -1134,7 +1163,7 @@ public interface MetaData {
 
             @Override
             public MetaData.Type product() {
-                return Codec.ACTIVATE_API_METADATA_METADATA__TYPE.get(this.asJson, "product");
+                return requireNonNull(Codec.ACTIVATE_API_METADATA_METADATA__TYPE.get(this.asJson, "product"));
             }
 
             public Meta product(MetaData.Type v) {
@@ -1142,7 +1171,7 @@ public interface MetaData {
                 return this;
             }
 
-            public Meta productDo(UnaryOperator<MetaData.@Nullable Type> act) {
+            public Meta productDo(Fn.UnaryOperate<MetaData.Type> act) {
                 var x = act.apply(product());
                 return product(x);
             }
@@ -1160,7 +1189,8 @@ public interface MetaData {
     interface Properties {
 
         boolean binary();
-        Properties binary( boolean v);
+
+        Properties binary(boolean v);
 
         List<Property> properties();
     }
@@ -1175,7 +1205,8 @@ public interface MetaData {
         Entity identify(String id);
 
         boolean binary();
-        Entity binary( boolean v);
+
+        Entity binary(boolean v);
 
     }
 
@@ -1209,7 +1240,7 @@ public interface MetaData {
 
             @Override
             public String table() {
-                return vat.api.implement.Codec.STRING.get(this.asJson, "table");
+                return requireNonNull(vat.api.implement.Codec.STRING.get(this.asJson, "table"));
             }
 
             public Meta table(String v) {
@@ -1224,7 +1255,7 @@ public interface MetaData {
 
             @Override
             public List<MetaData.Column> columns() {
-                return Codec.LIST_$$ACTIVATE_API_METADATA_METADATA__COLUMN.get(this.asJson, "columns");
+                return elementsNonNull(Codec.LIST_$$ACTIVATE_API_METADATA_METADATA__COLUMN.get(this.asJson, "columns"));
             }
 
             public Meta columns(List<MetaData.Column> v) {
@@ -1232,6 +1263,7 @@ public interface MetaData {
                 return this;
             }
 
+            @SuppressWarnings("OptionalOfNullableMisuse")
             public Meta columnsDo(Consumer<List<MetaData.Column>> act) {
                 var x = Optional.ofNullable(columns()).orElseGet(ArrayList::new);
                 act.accept(x);
@@ -1241,7 +1273,7 @@ public interface MetaData {
 
             @Override
             public String identity() {
-                return vat.api.implement.Codec.STRING.get(this.asJson, "identity");
+                return requireNonNull(vat.api.implement.Codec.STRING.get(this.asJson, "identity"));
             }
 
             public Meta identity(String v) {
@@ -1251,7 +1283,7 @@ public interface MetaData {
 
             @Override
             public String name() {
-                return vat.api.implement.Codec.STRING.get(this.asJson, "name");
+                return requireNonNull(vat.api.implement.Codec.STRING.get(this.asJson, "name"));
             }
 
             public Meta name(String v) {
@@ -1260,6 +1292,7 @@ public interface MetaData {
             }
 
             @Override
+            @Nullable
             public String description() {
                 return vat.api.implement.Codec.STRING.get(this.asJson, "description");
             }
@@ -1272,7 +1305,7 @@ public interface MetaData {
 
             @Override
             public String identify() {
-                return vat.api.implement.Codec.STRING.get(this.asJson, "identify");
+                return requireNonNull(vat.api.implement.Codec.STRING.get(this.asJson, "identify"));
             }
 
             public Meta identify(String v) {
@@ -1282,8 +1315,8 @@ public interface MetaData {
 
             @Override
             public String role() {
-                return this.asJson.containsKey("role") ? vat.api.implement.Codec.STRING.get(this.asJson,
-                        "role") : MetaData.Actor.super.role();
+                return this.asJson.containsKey("role") ? requireNonNull(vat.api.implement.Codec.STRING.get(this.asJson,
+                        "role")) : MetaData.Actor.super.role();
             }
 
             public Meta role(String v) {
@@ -1321,6 +1354,7 @@ public interface MetaData {
             public Meta _this() {
                 return this;
             }
+
             @Override
             public boolean binary() {
                 return Optional.ofNullable(vat.api.implement.Codec.BOOLEAN.get(asJson, "binary")).orElse(false);
@@ -1338,7 +1372,7 @@ public interface MetaData {
 
             @Override
             public String identify() {
-                return vat.api.implement.Codec.STRING.get(this.asJson, "identify");
+                return requireNonNull(vat.api.implement.Codec.STRING.get(this.asJson, "identify"));
             }
 
             public Meta identify(String v) {
@@ -1348,7 +1382,7 @@ public interface MetaData {
 
             @Override
             public String table() {
-                return vat.api.implement.Codec.STRING.get(this.asJson, "table");
+                return requireNonNull(vat.api.implement.Codec.STRING.get(this.asJson, "table"));
             }
 
             public Meta table(String v) {
@@ -1363,7 +1397,7 @@ public interface MetaData {
 
             @Override
             public List<MetaData.Column> columns() {
-                return Codec.LIST_$$ACTIVATE_API_METADATA_METADATA__COLUMN.get(this.asJson, "columns");
+                return elementsNonNull(Codec.LIST_$$ACTIVATE_API_METADATA_METADATA__COLUMN.get(this.asJson, "columns"));
             }
 
             public Meta columns(List<MetaData.Column> v) {
@@ -1371,6 +1405,7 @@ public interface MetaData {
                 return this;
             }
 
+            @SuppressWarnings("OptionalOfNullableMisuse")
             public Meta columnsDo(Consumer<List<MetaData.Column>> act) {
                 var x = Optional.ofNullable(columns()).orElseGet(ArrayList::new);
                 act.accept(x);
@@ -1380,7 +1415,7 @@ public interface MetaData {
 
             @Override
             public String identity() {
-                return vat.api.implement.Codec.STRING.get(this.asJson, "identity");
+                return requireNonNull(vat.api.implement.Codec.STRING.get(this.asJson, "identity"));
             }
 
             public Meta identity(String v) {
@@ -1390,7 +1425,7 @@ public interface MetaData {
 
             @Override
             public String name() {
-                return vat.api.implement.Codec.STRING.get(this.asJson, "name");
+                return requireNonNull(vat.api.implement.Codec.STRING.get(this.asJson, "name"));
             }
 
             public Meta name(String v) {
@@ -1399,6 +1434,7 @@ public interface MetaData {
             }
 
             @Override
+            @Nullable
             public String description() {
                 return vat.api.implement.Codec.STRING.get(this.asJson, "description");
             }
@@ -1410,8 +1446,8 @@ public interface MetaData {
 
             @Override
             public String role() {
-                return this.asJson.containsKey("role") ? vat.api.implement.Codec.STRING.get(this.asJson,
-                        "role") : MetaData.Ability.super.role();
+                return this.asJson.containsKey("role") ? requireNonNull(vat.api.implement.Codec.STRING.get(this.asJson,
+                        "role")) : MetaData.Ability.super.role();
             }
 
             public Meta role(String v) {
@@ -1449,9 +1485,11 @@ public interface MetaData {
             public Meta _this() {
                 return this;
             }
+
             public Meta() {
                 this(new JsonObject());
             }
+
             @Override
             public boolean binary() {
                 return Optional.ofNullable(vat.api.implement.Codec.BOOLEAN.get(asJson, "binary")).orElse(false);
@@ -1461,9 +1499,10 @@ public interface MetaData {
                 vat.api.implement.Codec.BOOLEAN.set(asJson, "binary", b);
                 return this;
             }
+
             @Override
             public String identify() {
-                return vat.api.implement.Codec.STRING.get(this.asJson, "identify");
+                return requireNonNull(vat.api.implement.Codec.STRING.get(this.asJson, "identify"));
             }
 
             public Meta identify(String v) {
@@ -1478,7 +1517,7 @@ public interface MetaData {
 
             @Override
             public List<MetaData.Column> columns() {
-                return Codec.LIST_$$ACTIVATE_API_METADATA_METADATA__COLUMN.get(this.asJson, "columns");
+                return elementsNonNull(Codec.LIST_$$ACTIVATE_API_METADATA_METADATA__COLUMN.get(this.asJson, "columns"));
             }
 
             public Meta columns(List<MetaData.Column> v) {
@@ -1486,6 +1525,7 @@ public interface MetaData {
                 return this;
             }
 
+            @SuppressWarnings("OptionalOfNullableMisuse")
             public Meta columnsDo(Consumer<List<MetaData.Column>> act) {
                 var x = Optional.ofNullable(columns()).orElseGet(ArrayList::new);
                 act.accept(x);
@@ -1495,7 +1535,7 @@ public interface MetaData {
 
             @Override
             public String identity() {
-                return vat.api.implement.Codec.STRING.get(this.asJson, "identity");
+                return requireNonNull(vat.api.implement.Codec.STRING.get(this.asJson, "identity"));
             }
 
             public Meta identity(String v) {
@@ -1505,7 +1545,7 @@ public interface MetaData {
 
             @Override
             public String name() {
-                return vat.api.implement.Codec.STRING.get(this.asJson, "name");
+                return requireNonNull(vat.api.implement.Codec.STRING.get(this.asJson, "name"));
             }
 
             public Meta name(String v) {
@@ -1514,6 +1554,7 @@ public interface MetaData {
             }
 
             @Override
+            @Nullable
             public String description() {
                 return vat.api.implement.Codec.STRING.get(this.asJson, "description");
             }
@@ -1525,8 +1566,8 @@ public interface MetaData {
 
             @Override
             public String role() {
-                return this.asJson.containsKey("role") ? vat.api.implement.Codec.STRING.get(this.asJson,
-                        "role") : MetaData.Record.super.role();
+                return this.asJson.containsKey("role") ? requireNonNull(vat.api.implement.Codec.STRING.get(this.asJson,
+                        "role")) : MetaData.Record.super.role();
             }
 
             public Meta role(String v) {
@@ -1536,7 +1577,7 @@ public interface MetaData {
 
             @Override
             public String table() {
-                return vat.api.implement.Codec.STRING.get(this.asJson, "table");
+                return requireNonNull(vat.api.implement.Codec.STRING.get(this.asJson, "table"));
             }
 
             public Meta table(String v) {
@@ -1568,12 +1609,15 @@ public interface MetaData {
         default String role() {
             return "data";
         }
+
         boolean binary();
+
         record Meta(JsonObject asJson) implements MetaData.Object, Applicative<Meta> {
             @Override
             public Meta _this() {
                 return this;
             }
+
             @Override
             public boolean binary() {
                 return Optional.ofNullable(vat.api.implement.Codec.BOOLEAN.get(asJson, "binary")).orElse(false);
@@ -1596,8 +1640,8 @@ public interface MetaData {
 
             @Override
             public String role() {
-                return this.asJson.containsKey("role") ? vat.api.implement.Codec.STRING.get(this.asJson,
-                        "role") : MetaData.Object.super.role();
+                return this.asJson.containsKey("role") ? requireNonNull(vat.api.implement.Codec.STRING.get(this.asJson,
+                        "role")) : MetaData.Object.super.role();
             }
 
             public Meta role(String v) {
@@ -1607,7 +1651,7 @@ public interface MetaData {
 
             @Override
             public List<MetaData.Property> properties() {
-                return Codec.LIST_$$ACTIVATE_API_METADATA_METADATA__PROPERTY.get(this.asJson, "properties");
+                return elementsNonNull(Codec.LIST_$$ACTIVATE_API_METADATA_METADATA__PROPERTY.get(this.asJson, "properties"));
             }
 
             public Meta properties(List<MetaData.Property> v) {
@@ -1615,6 +1659,7 @@ public interface MetaData {
                 return this;
             }
 
+            @SuppressWarnings("OptionalOfNullableMisuse")
             public Meta propertiesDo(Consumer<List<Property>> act) {
                 var x = Optional.ofNullable(properties()).orElseGet(ArrayList::new);
                 act.accept(x);
@@ -1624,7 +1669,7 @@ public interface MetaData {
 
             @Override
             public String identity() {
-                return vat.api.implement.Codec.STRING.get(this.asJson, "identity");
+                return requireNonNull(vat.api.implement.Codec.STRING.get(this.asJson, "identity"));
             }
 
             public Meta identity(String v) {
@@ -1634,7 +1679,7 @@ public interface MetaData {
 
             @Override
             public String name() {
-                return vat.api.implement.Codec.STRING.get(this.asJson, "name");
+                return requireNonNull(vat.api.implement.Codec.STRING.get(this.asJson, "name"));
             }
 
             public Meta name(String v) {
@@ -1643,6 +1688,7 @@ public interface MetaData {
             }
 
             @Override
+            @Nullable
             public String description() {
                 return vat.api.implement.Codec.STRING.get(this.asJson, "description");
             }
@@ -1684,7 +1730,7 @@ public interface MetaData {
 
             @Override
             public String identity() {
-                return vat.api.implement.Codec.STRING.get(this.asJson, "identity");
+                return requireNonNull(vat.api.implement.Codec.STRING.get(this.asJson, "identity"));
             }
 
             public Meta identity(String v) {
@@ -1694,7 +1740,7 @@ public interface MetaData {
 
             @Override
             public String name() {
-                return vat.api.implement.Codec.STRING.get(this.asJson, "name");
+                return requireNonNull(vat.api.implement.Codec.STRING.get(this.asJson, "name"));
             }
 
             public Meta name(String v) {
@@ -1703,6 +1749,7 @@ public interface MetaData {
             }
 
             @Override
+            @Nullable
             public String description() {
                 return vat.api.implement.Codec.STRING.get(this.asJson, "description");
             }
@@ -1714,7 +1761,7 @@ public interface MetaData {
 
             @Override
             public String text() {
-                return vat.api.implement.Codec.STRING.get(this.asJson, "text");
+                return requireNonNull(vat.api.implement.Codec.STRING.get(this.asJson, "text"));
             }
 
             public Meta text(String v) {
@@ -1724,7 +1771,7 @@ public interface MetaData {
 
             @Override
             public long ordinal() {
-                return vat.api.implement.Codec.LONG.get(this.asJson, "ordinal");
+                return requireNonNull(vat.api.implement.Codec.LONG.get(this.asJson, "ordinal"));
             }
 
             public Meta ordinal(long v) {
@@ -1754,7 +1801,8 @@ public interface MetaData {
             public Meta _this() {
                 return this;
             }
-             @Override
+
+            @Override
             public boolean binary() {
                 return Optional.ofNullable(vat.api.implement.Codec.BOOLEAN.get(asJson, "binary")).orElse(false);
             }
@@ -1776,7 +1824,7 @@ public interface MetaData {
 
             @Override
             public List<MetaData.Property> properties() {
-                return Codec.LIST_$$ACTIVATE_API_METADATA_METADATA__PROPERTY.get(this.asJson, "properties");
+                return elementsNonNull(Codec.LIST_$$ACTIVATE_API_METADATA_METADATA__PROPERTY.get(this.asJson, "properties"));
             }
 
             public Meta properties(List<MetaData.Property> v) {
@@ -1784,6 +1832,7 @@ public interface MetaData {
                 return this;
             }
 
+            @SuppressWarnings("OptionalOfNullableMisuse")
             public Meta propertiesDo(Consumer<List<MetaData.Property>> act) {
                 var x = Optional.ofNullable(properties()).orElseGet(ArrayList::new);
                 act.accept(x);
@@ -1793,7 +1842,7 @@ public interface MetaData {
 
             @Override
             public String identity() {
-                return vat.api.implement.Codec.STRING.get(this.asJson, "identity");
+                return requireNonNull(vat.api.implement.Codec.STRING.get(this.asJson, "identity"));
             }
 
             public Meta identity(String v) {
@@ -1803,7 +1852,7 @@ public interface MetaData {
 
             @Override
             public String name() {
-                return vat.api.implement.Codec.STRING.get(this.asJson, "name");
+                return requireNonNull(vat.api.implement.Codec.STRING.get(this.asJson, "name"));
             }
 
             public Meta name(String v) {
@@ -1812,6 +1861,7 @@ public interface MetaData {
             }
 
             @Override
+            @Nullable
             public String description() {
                 return vat.api.implement.Codec.STRING.get(this.asJson, "description");
             }
@@ -1823,7 +1873,7 @@ public interface MetaData {
 
             @Override
             public List<MetaData.EventKind> kinds() {
-                return Codec.LIST_$$ACTIVATE_API_METADATA_METADATA__EVENT_KIND.get(this.asJson, "kinds");
+                return elementsNonNull(Codec.LIST_$$ACTIVATE_API_METADATA_METADATA__EVENT_KIND.get(this.asJson, "kinds"));
             }
 
             public Meta kinds(List<MetaData.EventKind> v) {
@@ -1831,6 +1881,7 @@ public interface MetaData {
                 return this;
             }
 
+            @SuppressWarnings("OptionalOfNullableMisuse")
             public Meta kindsDo(Consumer<List<MetaData.EventKind>> act) {
                 var x = Optional.ofNullable(kinds()).orElseGet(ArrayList::new);
                 act.accept(x);
@@ -1840,8 +1891,8 @@ public interface MetaData {
 
             @Override
             public String role() {
-                return this.asJson.containsKey("role") ? vat.api.implement.Codec.STRING.get(this.asJson,
-                        "role") : MetaData.Event.super.role();
+                return this.asJson.containsKey("role") ? requireNonNull(vat.api.implement.Codec.STRING.get(this.asJson,
+                        "role")) : MetaData.Event.super.role();
             }
 
             public Meta role(String v) {
@@ -1890,7 +1941,7 @@ public interface MetaData {
 
             @Override
             public String identity() {
-                return vat.api.implement.Codec.STRING.get(this.asJson, "identity");
+                return requireNonNull(vat.api.implement.Codec.STRING.get(this.asJson, "identity"));
             }
 
             public Meta identity(String v) {
@@ -1900,7 +1951,7 @@ public interface MetaData {
 
             @Override
             public String name() {
-                return vat.api.implement.Codec.STRING.get(this.asJson, "name");
+                return requireNonNull(vat.api.implement.Codec.STRING.get(this.asJson, "name"));
             }
 
             public Meta name(String v) {
@@ -1909,6 +1960,7 @@ public interface MetaData {
             }
 
             @Override
+            @Nullable
             public String description() {
                 return vat.api.implement.Codec.STRING.get(this.asJson, "description");
             }
@@ -1920,7 +1972,7 @@ public interface MetaData {
 
             @Override
             public MetaData.Type input() {
-                return Codec.ACTIVATE_API_METADATA_METADATA__TYPE.get(this.asJson, "input");
+                return requireNonNull(Codec.ACTIVATE_API_METADATA_METADATA__TYPE.get(this.asJson, "input"));
             }
 
             public Meta input(MetaData.Type v) {
@@ -1928,14 +1980,14 @@ public interface MetaData {
                 return this;
             }
 
-            public Meta inputDo(UnaryOperator<MetaData.@Nullable Type> act) {
+            public Meta inputDo(Fn.UnaryOperate<MetaData.Type> act) {
                 var x = act.apply(input());
                 return input(x);
             }
 
             @Override
             public MetaData.Type output() {
-                return Codec.ACTIVATE_API_METADATA_METADATA__TYPE.get(this.asJson, "output");
+                return requireNonNull(Codec.ACTIVATE_API_METADATA_METADATA__TYPE.get(this.asJson, "output"));
             }
 
             public Meta output(MetaData.Type v) {
@@ -1943,7 +1995,7 @@ public interface MetaData {
                 return this;
             }
 
-            public Meta outputDo(UnaryOperator<MetaData.@Nullable Type> act) {
+            public Meta outputDo(Fn.UnaryOperate<MetaData.Type> act) {
                 var x = act.apply(output());
                 return output(x);
             }
@@ -1981,7 +2033,7 @@ public interface MetaData {
             return path() + "/system";
         }
 
-        List<Type> parameters();
+        @Nullable List<Type> parameters();
 
         record Meta(JsonObject asJson) implements MetaData.ErrorEntry, Applicative<Meta> {
             @Override
@@ -2001,7 +2053,7 @@ public interface MetaData {
 
             @Override
             public String path() {
-                return vat.api.implement.Codec.STRING.get(this.asJson, "path");
+                return requireNonNull(vat.api.implement.Codec.STRING.get(this.asJson, "path"));
             }
 
             public Meta path(String v) {
@@ -2011,7 +2063,7 @@ public interface MetaData {
 
             @Override
             public String identity() {
-                return vat.api.implement.Codec.STRING.get(this.asJson, "identity");
+                return requireNonNull(vat.api.implement.Codec.STRING.get(this.asJson, "identity"));
             }
 
             public Meta identity(String v) {
@@ -2021,7 +2073,7 @@ public interface MetaData {
 
             @Override
             public String name() {
-                return vat.api.implement.Codec.STRING.get(this.asJson, "name");
+                return requireNonNull(vat.api.implement.Codec.STRING.get(this.asJson, "name"));
             }
 
             public Meta name(String v) {
@@ -2030,6 +2082,7 @@ public interface MetaData {
             }
 
             @Override
+            @Nullable
             public String description() {
                 return vat.api.implement.Codec.STRING.get(this.asJson, "description");
             }
@@ -2040,14 +2093,16 @@ public interface MetaData {
             }
 
             @Override
+            @Nullable
             public List<MetaData.Type> parameters() {
-                return Codec.LIST_$$ACTIVATE_API_METADATA_METADATA__TYPE.get(this.asJson, "parameters");
+                return elementNonNull(Codec.LIST_$$ACTIVATE_API_METADATA_METADATA__TYPE.get(this.asJson, "parameters"));
             }
 
             public Meta parameters(List<MetaData.Type> v) {
                 Codec.LIST_$$ACTIVATE_API_METADATA_METADATA__TYPE.set(this.asJson, "parameters", v);
                 return this;
             }
+
 
             public Meta parametersDo(Consumer<List<MetaData.Type>> act) {
                 var x = Optional.ofNullable(parameters()).orElseGet(ArrayList::new);
@@ -2088,7 +2143,7 @@ public interface MetaData {
 
             @Override
             public String path() {
-                return vat.api.implement.Codec.STRING.get(this.asJson, "path");
+                return requireNonNull(vat.api.implement.Codec.STRING.get(this.asJson, "path"));
             }
 
             public Meta path(String v) {
@@ -2098,7 +2153,7 @@ public interface MetaData {
 
             @Override
             public String identity() {
-                return vat.api.implement.Codec.STRING.get(this.asJson, "identity");
+                return requireNonNull(vat.api.implement.Codec.STRING.get(this.asJson, "identity"));
             }
 
             public Meta identity(String v) {
@@ -2108,7 +2163,7 @@ public interface MetaData {
 
             @Override
             public String name() {
-                return vat.api.implement.Codec.STRING.get(this.asJson, "name");
+                return requireNonNull(vat.api.implement.Codec.STRING.get(this.asJson, "name"));
             }
 
             public Meta name(String v) {
@@ -2117,6 +2172,7 @@ public interface MetaData {
             }
 
             @Override
+            @Nullable
             public String description() {
                 return vat.api.implement.Codec.STRING.get(this.asJson, "description");
             }
@@ -2128,7 +2184,7 @@ public interface MetaData {
 
             @Override
             public MetaData.Type type() {
-                return Codec.ACTIVATE_API_METADATA_METADATA__TYPE.get(this.asJson, "type");
+                return requireNonNull(Codec.ACTIVATE_API_METADATA_METADATA__TYPE.get(this.asJson, "type"));
             }
 
             public Meta type(MetaData.Type v) {
@@ -2136,7 +2192,7 @@ public interface MetaData {
                 return this;
             }
 
-            public Meta typeDo(UnaryOperator<@Nullable Type> act) {
+            public Meta typeDo(Fn.UnaryOperate<Type> act) {
                 var x = act.apply(type());
                 return type(x);
             }
@@ -2174,7 +2230,7 @@ public interface MetaData {
 
             @Override
             public String identity() {
-                return vat.api.implement.Codec.STRING.get(this.asJson, "identity");
+                return requireNonNull(vat.api.implement.Codec.STRING.get(this.asJson, "identity"));
             }
 
             public Meta identity(String v) {
@@ -2184,7 +2240,7 @@ public interface MetaData {
 
             @Override
             public String name() {
-                return vat.api.implement.Codec.STRING.get(this.asJson, "name");
+                return requireNonNull(vat.api.implement.Codec.STRING.get(this.asJson, "name"));
             }
 
             public Meta name(String v) {
@@ -2193,6 +2249,7 @@ public interface MetaData {
             }
 
             @Override
+            @Nullable
             public String description() {
                 return vat.api.implement.Codec.STRING.get(this.asJson, "description");
             }
@@ -2204,7 +2261,7 @@ public interface MetaData {
 
             @Override
             public List<MetaData.ConfigEntry> properties() {
-                return Codec.LIST_$$ACTIVATE_API_METADATA_METADATA__CONFIG_ENTRY.get(this.asJson, "properties");
+                return elementsNonNull(Codec.LIST_$$ACTIVATE_API_METADATA_METADATA__CONFIG_ENTRY.get(this.asJson, "properties"));
             }
 
             public Meta properties(List<MetaData.ConfigEntry> v) {
@@ -2212,8 +2269,9 @@ public interface MetaData {
                 return this;
             }
 
+
             public Meta propertiesDo(Consumer<List<MetaData.ConfigEntry>> act) {
-                var x = Optional.ofNullable(properties()).orElseGet(ArrayList::new);
+                var x = Fn.Maybe.ofNullable(properties()).orElseGet(ArrayList::new);
                 act.accept(x);
                 properties(x);
                 return this;
@@ -2254,7 +2312,7 @@ public interface MetaData {
 
             @Override
             public String identity() {
-                return vat.api.implement.Codec.STRING.get(this.asJson, "identity");
+                return requireNonNull(vat.api.implement.Codec.STRING.get(this.asJson, "identity"));
             }
 
             public Meta identity(String v) {
@@ -2264,7 +2322,7 @@ public interface MetaData {
 
             @Override
             public String name() {
-                return vat.api.implement.Codec.STRING.get(this.asJson, "name");
+                return requireNonNull(vat.api.implement.Codec.STRING.get(this.asJson, "name"));
             }
 
             public Meta name(String v) {
@@ -2273,6 +2331,7 @@ public interface MetaData {
             }
 
             @Override
+            @Nullable
             public String description() {
                 return vat.api.implement.Codec.STRING.get(this.asJson, "description");
             }
@@ -2284,7 +2343,7 @@ public interface MetaData {
 
             @Override
             public String address() {
-                return vat.api.implement.Codec.STRING.get(this.asJson, "address");
+                return requireNonNull(vat.api.implement.Codec.STRING.get(this.asJson, "address"));
             }
 
             public Meta address(String v) {
@@ -2294,7 +2353,7 @@ public interface MetaData {
 
             @Override
             public String configPath() {
-                return vat.api.implement.Codec.STRING.get(this.asJson, "configPath");
+                return requireNonNull(vat.api.implement.Codec.STRING.get(this.asJson, "configPath"));
             }
 
             public Meta configPath(String v) {
@@ -2304,7 +2363,7 @@ public interface MetaData {
 
             @Override
             public ReferenceType type() {
-                return Codec.REFERENCE_TYPE_DATA.get(asJson.getJsonObject("type"));
+                return requireNonNull(Codec.REFERENCE_TYPE_DATA.get(asJson.getJsonObject("type")));
             }
 
             public Meta type(ReferenceType type) {
@@ -2348,7 +2407,7 @@ public interface MetaData {
 
             @Override
             public String identity() {
-                return vat.api.implement.Codec.STRING.get(this.asJson, "identity");
+                return requireNonNull(vat.api.implement.Codec.STRING.get(this.asJson, "identity"));
             }
 
             public Meta identity(String v) {
@@ -2358,7 +2417,7 @@ public interface MetaData {
 
             @Override
             public String name() {
-                return vat.api.implement.Codec.STRING.get(this.asJson, "name");
+                return requireNonNull(vat.api.implement.Codec.STRING.get(this.asJson, "name"));
             }
 
             public Meta name(String v) {
@@ -2367,6 +2426,7 @@ public interface MetaData {
             }
 
             @Override
+            @Nullable
             public String description() {
                 return vat.api.implement.Codec.STRING.get(this.asJson, "description");
             }
@@ -2378,7 +2438,7 @@ public interface MetaData {
 
             @Override
             public String address() {
-                return vat.api.implement.Codec.STRING.get(this.asJson, "address");
+                return requireNonNull(vat.api.implement.Codec.STRING.get(this.asJson, "address"));
             }
 
             public Meta address(String v) {
@@ -2388,12 +2448,12 @@ public interface MetaData {
 
             @Override
             public String configPath() {
-                return vat.api.implement.Codec.STRING.get(this.asJson, "configPath");
+                return requireNonNull(vat.api.implement.Codec.STRING.get(this.asJson, "configPath"));
             }
 
             @Override
             public ReferenceType type() {
-                return Codec.REFERENCE_TYPE_DATA.get(asJson.getJsonObject("type"));
+                return requireNonNull(Codec.REFERENCE_TYPE_DATA.get(asJson.getJsonObject("type")));
             }
 
             public Meta type(ReferenceType type) {
@@ -2442,7 +2502,7 @@ public interface MetaData {
 
             @Override
             public String identity() {
-                return vat.api.implement.Codec.STRING.get(this.asJson, "identity");
+                return requireNonNull(vat.api.implement.Codec.STRING.get(this.asJson, "identity"));
             }
 
             public Meta identity(String v) {
@@ -2452,7 +2512,7 @@ public interface MetaData {
 
             @Override
             public String name() {
-                return vat.api.implement.Codec.STRING.get(this.asJson, "name");
+                return requireNonNull(vat.api.implement.Codec.STRING.get(this.asJson, "name"));
             }
 
             public Meta name(String v) {
@@ -2461,6 +2521,7 @@ public interface MetaData {
             }
 
             @Override
+            @Nullable
             public String description() {
                 return vat.api.implement.Codec.STRING.get(this.asJson, "description");
             }
@@ -2472,7 +2533,7 @@ public interface MetaData {
 
             @Override
             public String address() {
-                return vat.api.implement.Codec.STRING.get(this.asJson, "address");
+                return requireNonNull(vat.api.implement.Codec.STRING.get(this.asJson, "address"));
             }
 
             public Meta address(String v) {
@@ -2482,7 +2543,7 @@ public interface MetaData {
 
             @Override
             public String configPath() {
-                return vat.api.implement.Codec.STRING.get(this.asJson, "configPath");
+                return requireNonNull(vat.api.implement.Codec.STRING.get(this.asJson, "configPath"));
             }
 
             public Meta configPath(String v) {
@@ -2492,7 +2553,7 @@ public interface MetaData {
 
             @Override
             public ReferenceType type() {
-                return Codec.REFERENCE_TYPE_DATA.get(asJson.getJsonObject("type"));
+                return requireNonNull(Codec.REFERENCE_TYPE_DATA.get(asJson.getJsonObject("type")));
             }
 
             public Meta type(ReferenceType type) {
@@ -2511,25 +2572,25 @@ public interface MetaData {
 
     @Enhance
     interface Domain extends Data, MetaData {
-        List<Actor> actors();
+        @Nullable List<Actor> actors();
 
-        List<Ability> abilities();
+        @Nullable List<Ability> abilities();
 
-        List<Record> records();
+        @Nullable List<Record> records();
 
-        List<Event> events();
+        @Nullable List<Event> events();
 
-        List<Object> data();
+        @Nullable List<Object> data();
 
-        List<Action> actions();
+        @Nullable List<Action> actions();
 
-        List<Publish> publish();
+        @Nullable List<Publish> publish();
 
-        List<Subscribe> subscribe();
+        @Nullable List<Subscribe> subscribe();
 
-        List<Uses> uses();
+        @Nullable List<Uses> uses();
 
-        Config config();
+        @Nullable Config config();
 
         record Meta(JsonObject asJson) implements MetaData.Domain, Applicative<Meta> {
             @Override
@@ -2548,6 +2609,7 @@ public interface MetaData {
             }
 
             @Override
+            @Nullable
             public String identity() {
                 return vat.api.implement.Codec.STRING.get(this.asJson, "identity");
             }
@@ -2558,6 +2620,7 @@ public interface MetaData {
             }
 
             @Override
+            @Nullable
             public String name() {
                 return vat.api.implement.Codec.STRING.get(this.asJson, "name");
             }
@@ -2568,6 +2631,7 @@ public interface MetaData {
             }
 
             @Override
+            @Nullable
             public String description() {
                 return vat.api.implement.Codec.STRING.get(this.asJson, "description");
             }
@@ -2578,8 +2642,9 @@ public interface MetaData {
             }
 
             @Override
+            @Nullable
             public List<MetaData.Actor> actors() {
-                return Codec.LIST_$$ACTIVATE_API_METADATA_METADATA__ACTOR.get(this.asJson, "actors");
+                return elementNonNull(Codec.LIST_$$ACTIVATE_API_METADATA_METADATA__ACTOR.get(this.asJson, "actors"));
             }
 
             public Meta actors(List<MetaData.Actor> v) {
@@ -2595,8 +2660,9 @@ public interface MetaData {
             }
 
             @Override
+            @Nullable
             public List<MetaData.Ability> abilities() {
-                return Codec.LIST_$$ACTIVATE_API_METADATA_METADATA__ABILITY.get(this.asJson, "abilities");
+                return elementNonNull(Codec.LIST_$$ACTIVATE_API_METADATA_METADATA__ABILITY.get(this.asJson, "abilities"));
             }
 
             public Meta abilities(List<MetaData.Ability> v) {
@@ -2612,8 +2678,9 @@ public interface MetaData {
             }
 
             @Override
+            @Nullable
             public List<MetaData.Record> records() {
-                return Codec.LIST_$$ACTIVATE_API_METADATA_METADATA__RECORD.get(this.asJson, "records");
+                return elementNonNull(Codec.LIST_$$ACTIVATE_API_METADATA_METADATA__RECORD.get(this.asJson, "records"));
             }
 
             public Meta records(List<MetaData.Record> v) {
@@ -2629,8 +2696,9 @@ public interface MetaData {
             }
 
             @Override
+            @Nullable
             public List<MetaData.Event> events() {
-                return Codec.LIST_$$ACTIVATE_API_METADATA_METADATA__EVENT.get(this.asJson, "events");
+                return elementNonNull(Codec.LIST_$$ACTIVATE_API_METADATA_METADATA__EVENT.get(this.asJson, "events"));
             }
 
             public Meta events(List<MetaData.Event> v) {
@@ -2639,15 +2707,16 @@ public interface MetaData {
             }
 
             public Meta eventsDo(Consumer<List<MetaData.Event>> act) {
-                var x = Optional.ofNullable(events()).orElseGet(ArrayList::new);
+                var x = Optional.ofNullable(events()).map(ArrayList::new).orElseGet(ArrayList::new);
                 act.accept(x);
                 events(x);
                 return this;
             }
 
             @Override
+            @Nullable
             public List<MetaData.Object> data() {
-                return Codec.LIST_$$ACTIVATE_API_METADATA_METADATA__OBJECT.get(this.asJson, "data");
+                return elementNonNull(Codec.LIST_$$ACTIVATE_API_METADATA_METADATA__OBJECT.get(this.asJson, "data"));
             }
 
             public Meta data(List<MetaData.Object> v) {
@@ -2663,8 +2732,9 @@ public interface MetaData {
             }
 
             @Override
+            @Nullable
             public List<MetaData.Action> actions() {
-                return Codec.LIST_$$ACTIVATE_API_METADATA_METADATA__ACTION.get(this.asJson, "actions");
+                return elementNonNull(Codec.LIST_$$ACTIVATE_API_METADATA_METADATA__ACTION.get(this.asJson, "actions"));
             }
 
             public Meta actions(List<MetaData.Action> v) {
@@ -2680,8 +2750,9 @@ public interface MetaData {
             }
 
             @Override
+            @Nullable
             public List<MetaData.Publish> publish() {
-                return Codec.LIST_$$ACTIVATE_API_METADATA_METADATA__PUBLISH.get(this.asJson, "publish");
+                return elementNonNull(Codec.LIST_$$ACTIVATE_API_METADATA_METADATA__PUBLISH.get(this.asJson, "publish"));
             }
 
             public Meta publish(List<MetaData.Publish> v) {
@@ -2697,8 +2768,9 @@ public interface MetaData {
             }
 
             @Override
+            @Nullable
             public List<MetaData.Subscribe> subscribe() {
-                return Codec.LIST_$$ACTIVATE_API_METADATA_METADATA__SUBSCRIBE.get(this.asJson, "subscribe");
+                return elementNonNull(Codec.LIST_$$ACTIVATE_API_METADATA_METADATA__SUBSCRIBE.get(this.asJson, "subscribe"));
             }
 
             public Meta subscribe(List<MetaData.Subscribe> v) {
@@ -2714,8 +2786,9 @@ public interface MetaData {
             }
 
             @Override
+            @Nullable
             public List<MetaData.Uses> uses() {
-                return Codec.LIST_$$ACTIVATE_API_METADATA_METADATA__USES.get(this.asJson, "uses");
+                return elementNonNull(Codec.LIST_$$ACTIVATE_API_METADATA_METADATA__USES.get(this.asJson, "uses"));
             }
 
             public Meta uses(List<MetaData.Uses> v) {
@@ -2731,7 +2804,7 @@ public interface MetaData {
             }
 
             @Override
-            public MetaData.Config config() {
+            public MetaData.@Nullable Config config() {
                 return Codec.ACTIVATE_API_METADATA_METADATA__CONFIG.get(this.asJson, "config");
             }
 
@@ -2740,7 +2813,8 @@ public interface MetaData {
                 return this;
             }
 
-            public Meta configDo(UnaryOperator<MetaData.@Nullable Config> act) {
+
+            public Meta configDo(Fn.UnaryOperate<MetaData.Config> act) {
                 var x = act.apply(config());
                 return config(x);
             }
@@ -2774,7 +2848,7 @@ public interface MetaData {
         DataCodec<EnumerationEntry.Meta, MetaData.EnumerationEntry> ENUMERATION_ENTRY_DATA = DataCodec.closure(
                 EnumerationEntry.Meta::new, EnumerationEntry.Meta.class);
 
-        DataProperty<List<MetaData.EnumerationEntry>> LIST_$$ACTIVATE_API_METADATA_METADATA__ENUMERATION_ENTRY = new CombineProperty<>(
+        DataProperty<List<MetaData.@Nullable EnumerationEntry>> LIST_$$ACTIVATE_API_METADATA_METADATA__ENUMERATION_ENTRY = new CombineProperty<>(
                 (o, k) -> list(o.getJsonArray(k), ArrayList::new,
                         (p_k, r_k) -> Codec.ENUMERATION_ENTRY_DATA.get(r_k.getJsonObject(p_k))),
                 (o, k, v) -> o.put(k, list(v, (p_k, r_k, v_k) -> r_k.set(p_k, v_k == null ? null : v_k.asJson()))));
@@ -2785,7 +2859,7 @@ public interface MetaData {
         DataCodec<Functor.Meta, MetaData.Functor> FUNCTOR_DATA = DataCodec.closure(Functor.Meta::new,
                 Functor.Meta.class);
 
-        DataProperty<List<MetaData.Functor>> LIST_$$ACTIVATE_API_METADATA_METADATA__FUNCTOR = new CombineProperty<>(
+        DataProperty<List<MetaData.@Nullable Functor>> LIST_$$ACTIVATE_API_METADATA_METADATA__FUNCTOR = new CombineProperty<>(
                 (o, k) -> list(o.getJsonArray(k), ArrayList::new,
                         (p_k, r_k) -> Codec.FUNCTOR_DATA.get(r_k.getJsonObject(p_k))),
                 (o, k, v) -> o.put(k, list(v, (p_k, r_k, v_k) -> r_k.set(p_k, v_k == null ? null : v_k.asJson()))));
@@ -2795,7 +2869,7 @@ public interface MetaData {
 
         DataCodec<Column.Meta, MetaData.Column> COLUMN_DATA = DataCodec.closure(Column.Meta::new, Column.Meta.class);
 
-        DataProperty<List<MetaData.Column>> LIST_$$ACTIVATE_API_METADATA_METADATA__COLUMN = new CombineProperty<>(
+        DataProperty<List<MetaData.@Nullable Column>> LIST_$$ACTIVATE_API_METADATA_METADATA__COLUMN = new CombineProperty<>(
                 (o, k) -> list(o.getJsonArray(k), ArrayList::new,
                         (p_k, r_k) -> Codec.COLUMN_DATA.get(r_k.getJsonObject(p_k))),
                 (o, k, v) -> o.put(k, list(v, (p_k, r_k, v_k) -> r_k.set(p_k, v_k == null ? null : v_k.asJson()))));
@@ -2807,7 +2881,7 @@ public interface MetaData {
 
         DataCodec<Record.Meta, MetaData.Record> RECORD_DATA = DataCodec.closure(Record.Meta::new, Record.Meta.class);
 
-        DataProperty<List<MetaData.Property>> LIST_$$ACTIVATE_API_METADATA_METADATA__PROPERTY = new CombineProperty<>(
+        DataProperty<List<MetaData.@Nullable Property>> LIST_$$ACTIVATE_API_METADATA_METADATA__PROPERTY = new CombineProperty<>(
                 (o, k) -> list(o.getJsonArray(k), ArrayList::new,
                         (p_k, r_k) -> Codec.PROPERTY_DATA.get(r_k.getJsonObject(p_k))),
                 (o, k, v) -> o.put(k, list(v, (p_k, r_k, v_k) -> r_k.set(p_k, v_k == null ? null : v_k.asJson()))));
@@ -2817,7 +2891,7 @@ public interface MetaData {
         DataCodec<EventKind.Meta, MetaData.EventKind> EVENT_KIND_DATA = DataCodec.closure(EventKind.Meta::new,
                 EventKind.Meta.class);
 
-        DataProperty<List<MetaData.EventKind>> LIST_$$ACTIVATE_API_METADATA_METADATA__EVENT_KIND = new CombineProperty<>(
+        DataProperty<List<MetaData.@Nullable EventKind>> LIST_$$ACTIVATE_API_METADATA_METADATA__EVENT_KIND = new CombineProperty<>(
                 (o, k) -> list(o.getJsonArray(k), ArrayList::new,
                         (p_k, r_k) -> Codec.EVENT_KIND_DATA.get(r_k.getJsonObject(p_k))),
                 (o, k, v) -> o.put(k, list(v, (p_k, r_k, v_k) -> r_k.set(p_k, v_k == null ? null : v_k.asJson()))));
@@ -2826,7 +2900,7 @@ public interface MetaData {
 
         DataCodec<Action.Meta, MetaData.Action> ACTION_DATA = DataCodec.closure(Action.Meta::new, Action.Meta.class);
 
-        DataProperty<List<MetaData.Type>> LIST_$$ACTIVATE_API_METADATA_METADATA__TYPE = new CombineProperty<>(
+        DataProperty<List<MetaData.@Nullable Type>> LIST_$$ACTIVATE_API_METADATA_METADATA__TYPE = new CombineProperty<>(
                 (o, k) -> list(o.getJsonArray(k), ArrayList::new, (p_k, r_k) -> data(r_k.getJsonObject(p_k), null)),
                 (o, k, v) -> o.put(k, list(v, (p_k, r_k, v_k) -> r_k.set(p_k, v_k == null ? null : v_k.asJson()
                         .put("$type",
@@ -2839,7 +2913,7 @@ public interface MetaData {
         DataCodec<ValueEntry.Meta, MetaData.ValueEntry> VALUE_ENTRY_DATA = DataCodec.closure(ValueEntry.Meta::new,
                 ValueEntry.Meta.class);
 
-        DataProperty<List<MetaData.ConfigEntry>> LIST_$$ACTIVATE_API_METADATA_METADATA__CONFIG_ENTRY = new CombineProperty<>(
+        DataProperty<List<MetaData.@Nullable ConfigEntry>> LIST_$$ACTIVATE_API_METADATA_METADATA__CONFIG_ENTRY = new CombineProperty<>(
                 (o, k) -> list(o.getJsonArray(k), ArrayList::new, (p_k, r_k) -> data(r_k.getJsonObject(p_k), null)),
                 (o, k, v) -> o.put(k, list(v, (p_k, r_k, v_k) -> r_k.set(p_k, v_k == null ? null : v_k.asJson()
                         .put("$type",
@@ -2856,47 +2930,47 @@ public interface MetaData {
         DataCodec<Subscribe.Meta, MetaData.Subscribe> SUBSCRIBE_DATA = DataCodec.closure(Subscribe.Meta::new,
                 Subscribe.Meta.class);
 
-        DataProperty<List<MetaData.Actor>> LIST_$$ACTIVATE_API_METADATA_METADATA__ACTOR = new CombineProperty<>(
+        DataProperty<List<MetaData.@Nullable Actor>> LIST_$$ACTIVATE_API_METADATA_METADATA__ACTOR = new CombineProperty<>(
                 (o, k) -> list(o.getJsonArray(k), ArrayList::new,
                         (p_k, r_k) -> Codec.ACTOR_DATA.get(r_k.getJsonObject(p_k))),
                 (o, k, v) -> o.put(k, list(v, (p_k, r_k, v_k) -> r_k.set(p_k, v_k == null ? null : v_k.asJson()))));
 
-        DataProperty<List<MetaData.Ability>> LIST_$$ACTIVATE_API_METADATA_METADATA__ABILITY = new CombineProperty<>(
+        DataProperty<List<MetaData.@Nullable Ability>> LIST_$$ACTIVATE_API_METADATA_METADATA__ABILITY = new CombineProperty<>(
                 (o, k) -> list(o.getJsonArray(k), ArrayList::new,
                         (p_k, r_k) -> Codec.ABILITY_DATA.get(r_k.getJsonObject(p_k))),
                 (o, k, v) -> o.put(k, list(v, (p_k, r_k, v_k) -> r_k.set(p_k, v_k == null ? null : v_k.asJson()))));
 
-        DataProperty<List<MetaData.Record>> LIST_$$ACTIVATE_API_METADATA_METADATA__RECORD = new CombineProperty<>(
+        DataProperty<List<MetaData.@Nullable Record>> LIST_$$ACTIVATE_API_METADATA_METADATA__RECORD = new CombineProperty<>(
                 (o, k) -> list(o.getJsonArray(k), ArrayList::new,
                         (p_k, r_k) -> Codec.RECORD_DATA.get(r_k.getJsonObject(p_k))),
                 (o, k, v) -> o.put(k, list(v, (p_k, r_k, v_k) -> r_k.set(p_k, v_k == null ? null : v_k.asJson()))));
 
-        DataProperty<List<MetaData.Event>> LIST_$$ACTIVATE_API_METADATA_METADATA__EVENT = new CombineProperty<>(
+        DataProperty<List<MetaData.@Nullable Event>> LIST_$$ACTIVATE_API_METADATA_METADATA__EVENT = new CombineProperty<>(
                 (o, k) -> list(o.getJsonArray(k), ArrayList::new,
                         (p_k, r_k) -> Codec.EVENT_DATA.get(r_k.getJsonObject(p_k))),
                 (o, k, v) -> o.put(k, list(v, (p_k, r_k, v_k) -> r_k.set(p_k, v_k == null ? null : v_k.asJson()))));
 
-        DataProperty<List<MetaData.Object>> LIST_$$ACTIVATE_API_METADATA_METADATA__OBJECT = new CombineProperty<>(
+        DataProperty<List<MetaData.@Nullable Object>> LIST_$$ACTIVATE_API_METADATA_METADATA__OBJECT = new CombineProperty<>(
                 (o, k) -> list(o.getJsonArray(k), ArrayList::new,
                         (p_k, r_k) -> Codec.OBJECT_DATA.get(r_k.getJsonObject(p_k))),
                 (o, k, v) -> o.put(k, list(v, (p_k, r_k, v_k) -> r_k.set(p_k, v_k == null ? null : v_k.asJson()))));
 
-        DataProperty<List<MetaData.Action>> LIST_$$ACTIVATE_API_METADATA_METADATA__ACTION = new CombineProperty<>(
+        DataProperty<List<MetaData.@Nullable Action>> LIST_$$ACTIVATE_API_METADATA_METADATA__ACTION = new CombineProperty<>(
                 (o, k) -> list(o.getJsonArray(k), ArrayList::new,
                         (p_k, r_k) -> Codec.ACTION_DATA.get(r_k.getJsonObject(p_k))),
                 (o, k, v) -> o.put(k, list(v, (p_k, r_k, v_k) -> r_k.set(p_k, v_k == null ? null : v_k.asJson()))));
 
-        DataProperty<List<MetaData.Publish>> LIST_$$ACTIVATE_API_METADATA_METADATA__PUBLISH = new CombineProperty<>(
+        DataProperty<List<MetaData.@Nullable Publish>> LIST_$$ACTIVATE_API_METADATA_METADATA__PUBLISH = new CombineProperty<>(
                 (o, k) -> list(o.getJsonArray(k), ArrayList::new,
                         (p_k, r_k) -> Codec.PUBLISH_DATA.get(r_k.getJsonObject(p_k))),
                 (o, k, v) -> o.put(k, list(v, (p_k, r_k, v_k) -> r_k.set(p_k, v_k == null ? null : v_k.asJson()))));
 
-        DataProperty<List<MetaData.Subscribe>> LIST_$$ACTIVATE_API_METADATA_METADATA__SUBSCRIBE = new CombineProperty<>(
+        DataProperty<List<MetaData.@Nullable Subscribe>> LIST_$$ACTIVATE_API_METADATA_METADATA__SUBSCRIBE = new CombineProperty<>(
                 (o, k) -> list(o.getJsonArray(k), ArrayList::new,
                         (p_k, r_k) -> Codec.SUBSCRIBE_DATA.get(r_k.getJsonObject(p_k))),
                 (o, k, v) -> o.put(k, list(v, (p_k, r_k, v_k) -> r_k.set(p_k, v_k == null ? null : v_k.asJson()))));
 
-        DataProperty<List<MetaData.Uses>> LIST_$$ACTIVATE_API_METADATA_METADATA__USES = new CombineProperty<>(
+        DataProperty<List<MetaData.@Nullable Uses>> LIST_$$ACTIVATE_API_METADATA_METADATA__USES = new CombineProperty<>(
                 (o, k) -> list(o.getJsonArray(k), ArrayList::new,
                         (p_k, r_k) -> Codec.USES_DATA.get(r_k.getJsonObject(p_k))),
                 (o, k, v) -> o.put(k, list(v, (p_k, r_k, v_k) -> r_k.set(p_k, v_k == null ? null : v_k.asJson()))));
@@ -2926,6 +3000,7 @@ public interface MetaData {
                                         try {
                                             var jo = new JsonObject(Files.readString(v));
                                             var dom = Codec.DOMAIN_DATA.get(jo);
+                                            assert dom != null;
                                             out.put(dom.identity(), dom);
                                         } catch (IOException e) {
                                             log.error("loading {} fail", v, e);
@@ -2940,6 +3015,7 @@ public interface MetaData {
                                         try {
                                             var jo = new JsonObject(Files.readString(v));
                                             var dom = Codec.DOMAIN_DATA.get(jo);
+                                            assert dom != null;
                                             out.put(dom.identity(), dom);
                                         } catch (IOException e) {
                                             log.error("loading {} fail", v, e);

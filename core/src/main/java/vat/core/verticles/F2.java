@@ -5,8 +5,9 @@ import io.vertx.core.VerticleBase;
 import io.vertx.core.Vertx;
 import io.vertx.core.json.JsonObject;
 import lombok.SneakyThrows;
+import org.jspecify.annotations.Nullable;
 import vat.api.Activities;
-import vat.api.meta.Nullable;
+
 import vat.api.utils.Pointer;
 
 import java.util.Objects;

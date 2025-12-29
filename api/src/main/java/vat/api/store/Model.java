@@ -6,9 +6,9 @@ import io.vertx.sqlclient.Pool;
 import io.vertx.sqlclient.SqlClient;
 import lombok.Getter;
 import lombok.experimental.Accessors;
-import org.jetbrains.annotations.Nullable;
 import org.jooq.lambda.tuple.Tuple;
 import org.jooq.lambda.tuple.Tuple2;
+import org.jspecify.annotations.Nullable;
 import vat.api.DomainError;
 import vat.api.Store;
 import vat.api.implement.Stored;
@@ -25,7 +25,7 @@ import java.util.stream.Collectors;
  * @since 2025-10-21
  */
 public interface Model<T> extends Renderable {
-    String _schema();
+    @Nullable  String _schema();
 
     String _name();
 
@@ -46,7 +46,7 @@ public interface Model<T> extends Renderable {
 
     boolean _auditable();
 
-    <F extends Field<?>> F _traits(TraitField kind);
+    <F extends Field<?>> @Nullable F _traits(TraitField kind);
 
 
     Field<?>[] _fields();
@@ -61,7 +61,7 @@ public interface Model<T> extends Renderable {
     abstract class Base<ID, T, S extends Base<ID, T, S>> implements Model<T>, Store<T>, Stored<ID, T, S> {
         //region  base
         @Getter
-        public final String _schema;
+        @Nullable public final String _schema;
         @Getter
         public final String _name;
         public final int identity;
@@ -77,7 +77,7 @@ public interface Model<T> extends Renderable {
         @Getter
         public final Field<?>[] _fields;
         @Getter
-        public String _alias;
+        @Nullable  public String _alias;
 
         @Getter
         public final boolean _auditable;
@@ -145,7 +145,7 @@ public interface Model<T> extends Renderable {
         }
 
         @Override
-        public <F extends Field<?>> F _traits(TraitField kind) {
+        public <F extends Field<?>> @Nullable F _traits(TraitField kind) {
             return switch (kind) {
                 case VERSION -> version < 0 ? null : field(version);
                 case REMOVED -> removed < 0 ? null : field(removed);
@@ -159,16 +159,19 @@ public interface Model<T> extends Renderable {
 
         protected abstract S _self();
 
-        protected SqlClient _sql;
-        protected Dialect _dialect;
+        @Nullable  protected SqlClient _sql;
+        @Nullable  protected Dialect _dialect;
 
         public Stages.Store<T> store() {
+            assert _sql != null;
+            assert _dialect != null;
             var state = new Status(new State(_self(), _sql, _dialect));
             return () -> state;
         }
 
         protected <R> Future<R> transaction(Function<Stages.Store<T>, Future<R>> act) {
             return _sql instanceof Pool p ? p.withTransaction(tx -> {
+                assert _dialect != null;
                 var state = new Status(new State(_self(), tx, _dialect));
                 Stages.Store<T> s = () -> state;
                 return act.apply(s);
@@ -186,15 +189,15 @@ public interface Model<T> extends Renderable {
         //region extended singular
 
 
-        public Future<Void> remove(ID actor, ID id, int version) {
+        public Future<Void> remove(@Nullable ID actor, ID id, int version) {
             return transaction(s -> s.withActor(actor)
-                    .filter(_identity().eq(id).and(this.<Field.IntegerField>_traits(TraitField.VERSION).eq(version)))
+                    .filter(_identity().eq(id).and(Objects.requireNonNull(this.<Field.IntegerField>_traits(TraitField.VERSION)).eq(version)))
                     .remove(false)
                     .map(Fn.equal(1))
                     .mapEmpty());
         }
 
-        public Future<Void> remove(ID actor, ID id) {
+        public Future<Void> remove(@Nullable ID actor, ID id) {
             return transaction(s -> s.withActor(actor)
                     .filter(_identity().eq(id))
                     .remove(false)
@@ -202,21 +205,21 @@ public interface Model<T> extends Renderable {
                     .mapEmpty());
         }
 
-        public Future<Integer> removeAny(ID actor, Function<S, Value.BooleanValue> cond) {
+        public Future<Integer> removeAny(@Nullable ID actor, Function<S, Value.BooleanValue> cond) {
             return transaction(s -> s.withActor(actor)
                     .filter(cond.apply(_self()))
                     .remove(false));
         }
 
-        public Future<Void> removePermanent(ID actor, ID id, int version) {
+        public Future<Void> removePermanent(@Nullable ID actor, ID id, int version) {
             return transaction(s -> s.withActor(actor)
-                    .filter(_identity().eq(id).and(this.<Field.IntegerField>_traits(TraitField.VERSION).eq(version)))
+                    .filter(_identity().eq(id).and(Objects.requireNonNull(this.<Field.IntegerField>_traits(TraitField.VERSION)).eq(version)))
                     .remove(true)
                     .map(Fn.equal(1))
                     .mapEmpty());
         }
 
-        public Future<Void> removePermanent(ID actor, ID id) {
+        public Future<Void> removePermanent(@Nullable ID actor, ID id) {
             return transaction(s -> s.withActor(actor)
                     .filter(_identity().eq(id))
                     .remove(true)
@@ -224,7 +227,7 @@ public interface Model<T> extends Renderable {
                     .mapEmpty());
         }
 
-        public Future<Integer> removeAnyPermanent(ID actor, Function<S, Value.BooleanValue> cond) {
+        public Future<Integer> removeAnyPermanent(@Nullable ID actor, Function<S, Value.BooleanValue> cond) {
             return transaction(s -> s.withActor(actor)
                     .filter(cond.apply(_self()))
                     .remove(true));
@@ -234,7 +237,7 @@ public interface Model<T> extends Renderable {
             return store().withActor(actor).justPut(set.apply(_self()).toArray(StmtAssign[]::new)).map(Fn::isTrue).mapEmpty();
         }
 
-        public Future<Void> justPut(ID actor, JsonObject set) {
+        public Future<Void> justPut(@Nullable ID actor, JsonObject set) {
             var assigns = assign(set);
             return store().withActor(actor)
                     .justPut(assigns)
@@ -242,21 +245,21 @@ public interface Model<T> extends Renderable {
                     .mapEmpty();
         }
 
-        public Future<ID> putGetIdentity(ID actor, Function<S, Collection<StmtAssign>> set) {
+        public Future<ID> putGetIdentity(@Nullable ID actor, Function<S, Collection<StmtAssign>> set) {
             return store()
                     .withActor(actor)
                     .<ID>put(set.apply(_self()).toArray(StmtAssign[]::new))
                     ;
         }
 
-        public Future<ID> putGetIdentity(ID actor, JsonObject set) {
+        public Future<ID> putGetIdentity(@Nullable ID actor, JsonObject set) {
             var assigns = assign(set);
             return store().withActor(actor)
                     .put(assigns)
                     ;
         }
 
-        public Future<T> put(ID actor, JsonObject set) {
+        public Future<T> put(@Nullable ID actor, JsonObject set) {
             var assigns = assign(set);
             return store().withActor(actor)
                     .<ID>put(assigns)
@@ -264,14 +267,14 @@ public interface Model<T> extends Renderable {
                     ;
         }
 
-        public Future<T> put(ID actor, Function<S, Collection<StmtAssign>> set) {
+        public Future<T> put(@Nullable ID actor, Function<S, Collection<StmtAssign>> set) {
             return store()
                     .withActor(actor)
                     .<ID>put(set.apply(_self()).toArray(StmtAssign[]::new))
                     .flatMap(this::identity);
         }
 
-        public Future<Void> justPutMany(ID actor, Function<S, Collection<? extends Collection<StmtAssign>>> set) {
+        public Future<Void> justPutMany(@Nullable ID actor, Function<S, Collection<? extends Collection<StmtAssign>>> set) {
             var assigns = set.apply(_self()).stream().map(x -> x.toArray(StmtAssign[]::new)).toArray(StmtAssign[][]::new);
             return store().withActor(actor)
                     .justPutMany(assigns)
@@ -279,7 +282,7 @@ public interface Model<T> extends Renderable {
                     .mapEmpty();
         }
 
-        public Future<Void> justPutMany(ID actor, Collection<JsonObject> set) {
+        public Future<Void> justPutMany(@Nullable ID actor, Collection<JsonObject> set) {
             var assigns = set.stream().map(this::assign).toArray(StmtAssign[][]::new);
             return store().withActor(actor)
                     .justPutMany(assigns)
@@ -287,7 +290,7 @@ public interface Model<T> extends Renderable {
                     .mapEmpty();
         }
 
-        public Future<List<T>> putMany(ID actor, Collection<JsonObject> set) {
+        public Future<List<T>> putMany(@Nullable ID actor, Collection<JsonObject> set) {
             var assigns = set.stream().map(this::assign).toArray(StmtAssign[][]::new);
             return store().withActor(actor)
                     .<ID>putMany(assigns)
@@ -295,7 +298,7 @@ public interface Model<T> extends Renderable {
                     .flatMap(this::identities);
         }
 
-        public Future<List<T>> putMany(ID actor, Function<S, Collection<? extends Collection<StmtAssign>>> set) {
+        public Future<List<T>> putMany(@Nullable ID actor, Function<S, Collection<? extends Collection<StmtAssign>>> set) {
             var assigns = set.apply(_self()).stream().map(x -> x.toArray(StmtAssign[]::new)).toArray(StmtAssign[][]::new);
             return store().withActor(actor)
                     .<ID>putMany(assigns)
@@ -303,7 +306,7 @@ public interface Model<T> extends Renderable {
                     .flatMap(this::identities);
         }
 
-        public Future<List<ID>> putManyGetIdentity(ID actor, Collection<JsonObject> set) {
+        public Future<List<ID>> putManyGetIdentity(@Nullable ID actor, Collection<JsonObject> set) {
             var assigns = set.stream().map(this::assign).toArray(StmtAssign[][]::new);
             return store().withActor(actor)
                     .<ID>putMany(assigns)
@@ -311,7 +314,7 @@ public interface Model<T> extends Renderable {
                     ;
         }
 
-        public Future<List<ID>> putManyGetIdentity(ID actor, Function<S, Collection<? extends Collection<StmtAssign>>> set) {
+        public Future<List<ID>> putManyGetIdentity(@Nullable ID actor, Function<S, Collection<? extends Collection<StmtAssign>>> set) {
             var assigns = set.apply(_self()).stream().map(x -> x.toArray(StmtAssign[]::new)).toArray(StmtAssign[][]::new);
             return store().withActor(actor)
                     .<ID>putMany(assigns)
@@ -320,23 +323,23 @@ public interface Model<T> extends Renderable {
         }
 
 
-        public Future<Integer> setAny(ID actor, Function<S, Value.BooleanValue> cond, Function<S, Collection<Statement.SetStmt>> sets) {
+        public Future<Integer> setAny(@Nullable ID actor, Function<S, Value.BooleanValue> cond, Function<S, Collection<Statement.SetStmt>> sets) {
             return store().withActor(actor)
                     .filter(cond.apply(_self()))
                     .justSet(sets.apply(_self()).toArray(Statement.SetStmt[]::new))
                     ;
         }
 
-        public Future<Void> justSet(ID actor, ID id, int version, Function<S, Collection<Statement.SetStmt>> sets) {
+        public Future<Void> justSet(@Nullable ID actor, ID id, int version, Function<S, Collection<Statement.SetStmt>> sets) {
             return store().withActor(actor)
-                    .filter(_identity().eq(id).and(this.<Field.IntegerField>_traits(TraitField.VERSION).eq(version)))
+                    .filter(_identity().eq(id).and(Objects.requireNonNull(this.<Field.IntegerField>_traits(TraitField.VERSION)).eq(version)))
                     .justSet(sets.apply(_self()).toArray(Statement.SetStmt[]::new))
                     .map(Fn.equal(1))
                     .mapEmpty()
                     ;
         }
 
-        public Future<Void> justSet(ID actor, ID id, Function<S, Collection<Statement.SetStmt>> sets) {
+        public Future<Void> justSet(@Nullable ID actor, ID id, Function<S, Collection<Statement.SetStmt>> sets) {
             return store().withActor(actor)
                     .filter(_identity().eq(id))
                     .justSet(sets.apply(_self()).toArray(Statement.SetStmt[]::new))
@@ -345,16 +348,16 @@ public interface Model<T> extends Renderable {
                     ;
         }
 
-        public Future<Void> justSet(ID actor, ID id, int version, Collection<Statement.SetStmt> sets) {
+        public Future<Void> justSet(@Nullable ID actor, ID id, int version, Collection<Statement.SetStmt> sets) {
             return store().withActor(actor)
-                    .filter(_identity().eq(id).and(this.<Field.IntegerField>_traits(TraitField.VERSION).eq(version)))
+                    .filter(_identity().eq(id).and(Objects.requireNonNull(this.<Field.IntegerField>_traits(TraitField.VERSION)).eq(version)))
                     .justSet(sets.toArray(Statement.SetStmt[]::new))
                     .map(Fn.equal(1))
                     .mapEmpty()
                     ;
         }
 
-        public Future<Void> justSet(ID actor, ID id, Collection<Statement.SetStmt> sets) {
+        public Future<Void> justSet(@Nullable ID actor, ID id, Collection<Statement.SetStmt> sets) {
             return store().withActor(actor)
                     .filter(_identity().eq(id))
                     .justSet(sets.toArray(Statement.SetStmt[]::new))
@@ -363,17 +366,17 @@ public interface Model<T> extends Renderable {
                     ;
         }
 
-        public Future<Void> justSet(ID actor, ID id, int version, JsonObject set) {
+        public Future<Void> justSet(@Nullable ID actor, ID id, int version, JsonObject set) {
             var sets = sets(set);
             return store().withActor(actor)
-                    .filter(_identity().eq(id).and(this.<Field.IntegerField>_traits(TraitField.VERSION).eq(version)))
+                    .filter(_identity().eq(id).and(Objects.requireNonNull(this.<Field.IntegerField>_traits(TraitField.VERSION)).eq(version)))
                     .justSet(sets)
                     .map(Fn.equal(1))
                     .mapEmpty()
                     ;
         }
 
-        public Future<Void> justSet(ID actor, ID id, JsonObject set) {
+        public Future<Void> justSet(@Nullable ID actor, ID id, JsonObject set) {
             var sets = sets(set);
             return store().withActor(actor)
                     .filter(_identity().eq(id))
@@ -384,28 +387,28 @@ public interface Model<T> extends Renderable {
         }
 
 
-        public Future<T> set(ID actor, ID id, int version, Function<S, Collection<Statement.SetStmt>> sets) {
+        public Future<T> set(@Nullable ID actor, ID id, int version, Function<S, Collection<Statement.SetStmt>> sets) {
             return justSet(actor, id, version, sets)
                     .map(id)
                     .flatMap(this::identity)
                     ;
         }
 
-        public Future<T> set(ID actor, ID id, Function<S, Collection<Statement.SetStmt>> sets) {
+        public Future<T> set(@Nullable ID actor, ID id, Function<S, Collection<Statement.SetStmt>> sets) {
             return justSet(actor, id, sets)
                     .map(id)
                     .flatMap(this::identity)
                     ;
         }
 
-        public Future<T> set(ID actor, ID id, int version, Collection<Statement.SetStmt> sets) {
+        public Future<T> set(@Nullable ID actor, ID id, int version, Collection<Statement.SetStmt> sets) {
             return justSet(actor, id, version, sets)
                     .map(id)
                     .flatMap(this::identity)
                     ;
         }
 
-        public Future<T> set(ID actor, ID id, Collection<Statement.SetStmt> sets) {
+        public Future<T> set(@Nullable ID actor, ID id, Collection<Statement.SetStmt> sets) {
             return
                     justSet(actor, id, sets)
                             .map(id)
@@ -413,14 +416,14 @@ public interface Model<T> extends Renderable {
                     ;
         }
 
-        public Future<T> set(ID actor, ID id, int version, JsonObject set) {
+        public Future<T> set(@Nullable ID actor, ID id, int version, JsonObject set) {
             return justSet(actor, id, version, set)
                     .map(id)
                     .flatMap(this::identity)
                     ;
         }
 
-        public Future<T> set(ID actor, ID id, JsonObject set) {
+        public Future<T> set(@Nullable ID actor, ID id, JsonObject set) {
             return justSet(actor, id, set)
                     .map(id)
                     .flatMap(this::identity)
@@ -447,7 +450,7 @@ public interface Model<T> extends Renderable {
             return store().filter( _identity().eqAny(id)).any();
         }
         public Future<Optional<T>> one(ID id,int version) {
-            return store().filter(_identity().eq(id).and(((Field.IntegerField)_traits(TraitField.VERSION)).eq(version))).one().map(Optional::ofNullable);
+            return store().filter(_identity().eq(id).and(((Field.IntegerField) Objects.requireNonNull(_traits(TraitField.VERSION))).eq(version))).one().map(Optional::ofNullable);
         }
         /// fetch exactly one value that match this condition.
         public Future<Optional<T>> one(Function<S, Value.BooleanValue> cond) {
@@ -457,7 +460,7 @@ public interface Model<T> extends Renderable {
             return store().withHistory().filter(cond.apply(_self())).one().map(Optional::ofNullable);
         }
         public Future<Optional<T>> maybe(ID id,int version) {
-            return store().filter(_identity().eq(id).and(((Field.IntegerField)_traits(TraitField.VERSION)).eq(version))).maybe();
+            return store().filter(_identity().eq(id).and(((Field.IntegerField) Objects.requireNonNull(_traits(TraitField.VERSION))).eq(version))).maybe();
         }
         public Future<Optional<T>> maybe(Function<S, Value.BooleanValue> cond) {
             return store().filter(cond.apply(_self())).maybe();
@@ -475,7 +478,7 @@ public interface Model<T> extends Renderable {
             return operate.apply(_self(), store().filter(cond.apply(_self())));
         }
         //region tools
-        private transient volatile LinkedList<Field<?>> assignFields;
+        private transient volatile @Nullable LinkedList<Field<?>> assignFields;
 
         @SuppressWarnings("unchecked")
         private StmtAssign[] assign(JsonObject set) {
@@ -501,6 +504,8 @@ public interface Model<T> extends Renderable {
                     }
                 }
             }
+            assert assignFields!=null;
+            //noinspection DataFlowIssue
             return assignFields.stream()
                     .map(x -> {
                         if (set.containsKey(x._property())) {
@@ -515,7 +520,7 @@ public interface Model<T> extends Renderable {
 
         }
 
-        private transient volatile LinkedList<Field<?>> setsFields;
+        private transient volatile @Nullable LinkedList<Field<?>> setsFields;
 
         @SuppressWarnings("unchecked")
         private Statement.SetStmt[] sets(JsonObject set) {
@@ -537,6 +542,8 @@ public interface Model<T> extends Renderable {
                     }
                 }
             }
+            assert setsFields!=null;
+            //noinspection DataFlowIssue
             return setsFields.stream()
                     .map(x -> {
                         if (set.containsKey(x._property())) {

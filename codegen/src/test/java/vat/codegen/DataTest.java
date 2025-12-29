@@ -510,6 +510,7 @@ package vat.foundation.audits.api;
 
 import vat.api.Activities;
 import vat.api.meta.*;
+import org.jspecify.annotations.Nullable;
 import vat.api.Event;
 import vat.api.Record;
 import vat.api.Store;
@@ -543,7 +544,8 @@ public interface Audits extends Activities {
     }
 
     @Enhance
-    @Describe(value = "_AUDITS_AUDIT", domain = Audit.class)
+    @Describe(value = "_AUDITS_AUDIT")
+    @Identity.Refer(domain = Audits.class)
     @Table("foundation_audits_audit")
     interface Audit extends Record.Base, History {
         @Describe("_AUDITS_AUDIT_TOPIC")
@@ -689,6 +691,7 @@ import vat.api.Activities;
 import vat.api.Event;
 import vat.api.meta.*;
 import io.vertx.core.json.JsonObject;
+import org.jspecify.annotations.Nullable;
 @Enhance
 public interface Audits extends Activities {
     @Enhance
@@ -730,7 +733,7 @@ import io.vertx.core.buffer.Buffer;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.sqlclient.SqlConnection;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.util.List;
 import java.util.Map;
@@ -856,12 +859,12 @@ public interface Users extends Activities {
     Future<Map<JsonObject,JsonArray>> maps(@Nullable Map<JsonArray,JsonObject> in);
     
     
-    Future<@vat.api.meta.Nullable  Byte> exObjectByte(@Nullable  Byte in);
-    Future<@vat.api.meta.Nullable Short> exObjectShort(@Nullable Byte in);
-    Future<@vat.api.meta.Nullable  Integer> exObjectInteger(@Nullable  Integer in);
-    Future<@vat.api.meta.Nullable Long> exObjectLong(@Nullable Long in);
-    Future<@vat.api.meta.Nullable  Float> exObjectFloat(@Nullable  Float in);
-    Future<@vat.api.meta.Nullable Double> exObjectDouble(@Nullable Double in);
+    Future<@Nullable  Byte> exObjectByte(@Nullable  Byte in);
+    Future<@Nullable Short> exObjectShort(@Nullable Byte in);
+    Future<@Nullable  Integer> exObjectInteger(@Nullable  Integer in);
+    Future<@Nullable Long> exObjectLong(@Nullable Long in);
+    Future<@Nullable  Float> exObjectFloat(@Nullable  Float in);
+    Future<@Nullable Double> exObjectDouble(@Nullable Double in);
     
     Future<Long> exampleLong(Identifier identifier);
     Future<Integer> exampleInteger(@Nullable Identifier identifier);
@@ -930,7 +933,7 @@ public interface Users extends Activities {
                         import io.vertx.core.json.JsonArray;
                         import io.vertx.core.json.JsonObject;
                         import io.vertx.sqlclient.SqlConnection;
-                        import org.jetbrains.annotations.Nullable;
+                        import org.jspecify.annotations.Nullable;
                         
                         import java.util.List;
                         import java.util.Map;
@@ -1058,12 +1061,12 @@ public interface Users extends Activities {
                             Future<Map<JsonObject,JsonArray>> maps(@Nullable Map<JsonArray,JsonObject> in);
                             
                             
-                            Future<@vat.api.meta.Nullable  Byte> exObjectByte(@Nullable  Byte in);
-                            Future<@vat.api.meta.Nullable Short> exObjectShort(@Nullable Byte in);
-                            Future<@vat.api.meta.Nullable  Integer> exObjectInteger(@Nullable  Integer in);
-                            Future<@vat.api.meta.Nullable Long> exObjectLong(@Nullable Long in);
-                            Future<@vat.api.meta.Nullable  Float> exObjectFloat(@Nullable  Float in);
-                            Future<@vat.api.meta.Nullable Double> exObjectDouble(@Nullable Double in);
+                            Future<@Nullable  Byte> exObjectByte(@Nullable  Byte in);
+                            Future<@Nullable Short> exObjectShort(@Nullable Byte in);
+                            Future<@Nullable  Integer> exObjectInteger(@Nullable  Integer in);
+                            Future<@Nullable Long> exObjectLong(@Nullable Long in);
+                            Future<@Nullable  Float> exObjectFloat(@Nullable  Float in);
+                            Future<@Nullable Double> exObjectDouble(@Nullable Double in);
                             
                             Future<Long> exampleLong(Identifier identifier);
                             Future<Integer> exampleInteger(@Nullable Identifier identifier);
@@ -1090,7 +1093,7 @@ package vat.foundation.audits.api;
 import io.vertx.core.Future;
 import io.vertx.core.json.JsonObject;
 import lombok.With;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 import vat.api.*;
 import vat.api.Record;
 import vat.api.implement.PubSub;
@@ -1124,7 +1127,8 @@ public interface Audits extends Activities {
     }
 
     @Enhance
-    @Describe(value = "_AUDITS_AUDIT", domain = Audit.class)
+    @Describe(value = "_AUDITS_AUDIT")
+    @Identity.Refer(domain = Audits.class)
     @Table("foundation_audits_audit")
     interface Audit extends Record.Base, History {
         @Describe("_AUDITS_AUDIT_TOPIC")
@@ -1387,11 +1391,11 @@ import io.vertx.core.Future;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.sqlclient.SqlConnection;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 import vat.api.*;
+import vat.api.Entity.Entry;
 import vat.api.Record;
 import vat.api.meta.*;
-import vat.api.Entity.Entry;
 import vat.api.trait.History;
 import vat.api.utils.Fn;
 
@@ -1408,7 +1412,8 @@ import java.util.function.Function;
 @Describe("_USERS")
 public interface Users extends Activities {
     @Enhance
-    @Describe(value = "_USERS_USER", domain = Users.class)
+    @Describe(value = "_USERS_USER")
+    @Identity.Refer(domain = Users.class)
     @Table("foundation_users_user")
     interface User extends Actor.Base {
         @Describe("_USERS_USER_PROFILE")
@@ -1416,7 +1421,8 @@ public interface Users extends Activities {
     }
 
     @Enhance
-    @Describe(value = "_USERS_CERTIFICATE", identity = "certIdentity", domain = Users.class)
+    @Describe(value = "_USERS_CERTIFICATE")
+    @Identity.Refer( value = "certIdentity", domain = Users.class)
     @Table("foundation_users_certificate")
     interface Certificate extends Record.Base, History {
         @Describe("_USERS_CERTIFICATE_USER")
@@ -1629,6 +1635,7 @@ import vat.api.implement.PubSub;
 import vat.api.trait.History;
 import io.vertx.core.Future;
 import io.vertx.core.json.JsonObject;
+import org.jspecify.annotations.Nullable;
 import lombok.With;
 import java.util.Optional;
 import java.util.function.Function;
@@ -1657,7 +1664,8 @@ public interface Audits extends Activities {
     }
 
     @Enhance
-    @Describe(value = "_AUDITS_AUDIT", domain = Audit.class)
+    @Describe(value = "_AUDITS_AUDIT")
+    @Identity.Refer(domain = Audits.class)
     @Table("foundation_audits_audit")
     interface Audit extends Record.Base, History {
         @Describe("_AUDITS_AUDIT_TOPIC")
@@ -2500,7 +2508,7 @@ public interface Actions extends Activities {
             import io.vertx.core.Future;
             import io.vertx.core.json.JsonObject;
             import lombok.With;
-            import org.jetbrains.annotations.Nullable;
+            import org.jspecify.annotations.Nullable;
             import vat.api.*;
             import vat.api.Record;
             import vat.api.implement.PubSub;
@@ -2534,7 +2542,8 @@ public interface Actions extends Activities {
                 }
             
                 @Enhance
-                @Describe(value = "_AUDITS_AUDIT", domain = Audit.class)
+                @Describe(value = "_AUDITS_AUDIT")
+                @Identity.Refer(domain = Audits.class)
                 @Table("foundation_audits_audit")
                 interface Audit extends Record.Base, History {
                     @Describe("_AUDITS_AUDIT_TOPIC")
@@ -2798,6 +2807,7 @@ package config.config;
 import io.vertx.core.Future;
 import io.vertx.core.json.JsonObject;
 import io.vertx.sqlclient.SqlConnection;
+import org.jspecify.annotations.Nullable;
 import vat.api.*;
 import vat.api.Record;
 import vat.api.meta.*;

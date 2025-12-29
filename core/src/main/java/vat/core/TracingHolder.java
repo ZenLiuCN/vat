@@ -21,6 +21,7 @@ import io.vertx.core.eventbus.DeliveryOptions;
 import io.vertx.core.tracing.TracingPolicy;
 import io.vertx.tracing.opentelemetry.OpenTelemetryOptions;
 import org.jooq.lambda.Sneaky;
+import org.jspecify.annotations.Nullable;
 import vat.api.implement.BaseActivitiesProxy;
 
 import java.io.File;
@@ -43,7 +44,8 @@ import java.util.stream.Stream;
 /// @since 2025-11-11
 
 
-public class TracingHolder  {
+@SuppressWarnings("unused")
+public class TracingHolder {
 
 
     public static void setConfigurator(Runnable config) {
@@ -170,7 +172,7 @@ public class TracingHolder  {
 
     }
 
-    private static String getOs(String os) {
+    private static @Nullable String getOs(String os) {
         os = os.toLowerCase(Locale.ROOT);
         if (os.startsWith("windows")) {
             return OsIncubatingAttributes.OsTypeIncubatingValues.WINDOWS;
@@ -192,8 +194,6 @@ public class TracingHolder  {
             return OsIncubatingAttributes.OsTypeIncubatingValues.AIX;
         } else if (os.startsWith("solaris")) {
             return OsIncubatingAttributes.OsTypeIncubatingValues.SOLARIS;
-        } else if (os.startsWith("z/os")) {
-            return OsIncubatingAttributes.OsTypeIncubatingValues.Z_OS;
         }
         return null;
     }
@@ -310,19 +310,19 @@ public class TracingHolder  {
 
     }
 
+    @Nullable
     private static Runnable beforeConfig;
-
 
 
     public static void configCommands(Vertx vertx) {
 
     }
 
-    public static SdkTracerProvider sdkTracerProvider;
-    public static OpenTelemetrySdk openTelemetry;
+    @Nullable public static SdkTracerProvider sdkTracerProvider;
+    @Nullable  public static OpenTelemetrySdk openTelemetry;
 
 
-    public  static void configOption(AbstractLauncher launcher, VertxOptions options) {
+    public static void configOption(AbstractLauncher launcher, VertxOptions options) {
         System.setProperty("io.opentelemetry.context.contextStorageProvider",
                 "io.vertx.tracing.opentelemetry.VertxContextStorageProvider");
         var compress = Optional.ofNullable(System.getProperty("vertx.tracing.telemetry.compress")).orElse("none");
@@ -350,7 +350,7 @@ public class TracingHolder  {
         if (beforeConfig != null) beforeConfig.run();
         if (Optional.ofNullable(System.getProperty("vertx.tracing.system.enabled")).map(Boolean::parseBoolean).orElse(false)) {
             var op = BaseActivitiesProxy.OPTIONS.get();
-            op = op == null ? new DeliveryOptions() : new DeliveryOptions(op);
+            op = new DeliveryOptions(op);
             op.setTracingPolicy(TracingPolicy.ALWAYS);
             BaseActivitiesProxy.OPTIONS.set(op);
         }

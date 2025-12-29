@@ -6,6 +6,7 @@ import io.vertx.core.Vertx;
 import io.vertx.core.json.JsonObject;
 import lombok.SneakyThrows;
 import org.jooq.lambda.Sneaky;
+import org.jspecify.annotations.Nullable;
 import vat.api.implement.DomainManager;
 
 import javax.crypto.SecretKeyFactory;
@@ -41,7 +42,7 @@ public record PasswordProvider() implements CertificateProvider {
     }
 
     @SneakyThrows
-    static String hash(String password, String secret, Integer it) {
+    static String hash(String password, String secret, @Nullable Integer it) {
         var salt = secret.getBytes(StandardCharsets.UTF_8);
         var spec = new PBEKeySpec(password.toCharArray(), salt, it == null ? 10000 : it, 64 * 8);
         return Base64.getEncoder().withoutPadding().encodeToString(skf.generateSecret(spec).getEncoded());

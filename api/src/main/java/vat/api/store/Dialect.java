@@ -1,17 +1,15 @@
 package vat.api.store;
 
 import io.vertx.core.Future;
-import io.vertx.core.json.JsonObject;
 import io.vertx.sqlclient.SqlClient;
 import io.vertx.sqlclient.SqlResult;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 import vat.api.implement.Codec;
 
 import java.time.Duration;
 import java.time.Period;
 import java.util.*;
 import java.util.function.BiConsumer;
-import java.util.function.Function;
 
 
 /**
@@ -97,8 +95,10 @@ public interface Dialect extends Renderer {
     void insertAuditInject(State state);
 
     //endregion
+
     /// invoke after instanced, to config shared properties.
     void config();
+
     default String name() {
         return this.getClass().getSimpleName();
     }
@@ -106,8 +106,16 @@ public interface Dialect extends Renderer {
     /// pre convert parameters to dialect specified parameter type
     default Object parameter(Writer w, Object value) {
         return switch (value) {
-            case Duration d -> Codec.duration(d);
-            case Period d -> Codec.period(d);
+            case Duration d -> {
+                var v = Codec.duration(d);
+                assert v != null;
+                yield v;
+            }
+            case Period d -> {
+                var v = Codec.period(d);
+                assert v != null;
+                yield v;
+            }
             default -> value;
         };
     }
@@ -142,7 +150,7 @@ public interface Dialect extends Renderer {
         if (state.cond != null)
             rendered.render(q, state.cond);
         var removed = TraitField.REMOVED.of(state.primary);
-        if(!permanent){
+        if (!permanent) {
             if (removed != null) {
                 q.when(state.cond != null, " AND ").use(r -> ((Value.BooleanValue) removed).isFalse()._render(rendered, r));
             }
@@ -152,7 +160,7 @@ public interface Dialect extends Renderer {
                     .filter(Objects::nonNull)
                     .map(x -> ((Value.BooleanValue) x).isFalse())
                     .toList();
-            q.when((!permanent&&removed != null) || state.cond != null, " AND ")
+            q.when((!permanent && removed != null) || state.cond != null, " AND ")
                     .each(other, " AND ", rendered::render);
         }
     }
@@ -160,37 +168,41 @@ public interface Dialect extends Renderer {
     //endregion
 
     //region query builder
-     void delete(Writer q, State state, Rendered rendered);
+    void delete(Writer q, State state, Rendered rendered);
 
-     void softDelete(Writer q, State state, Rendered rendered);
+    void softDelete(Writer q, State state, Rendered rendered);
 
     void insert(Writer q, State state, Rendered rendered, boolean returning);
 
 
     void insertMulti(Writer q, State state, Rendered rendered, boolean returning);
 
-    static Field<?>[] ignoreHistory(Model<?> primary){
-        if(primary._historic()){
-            var his=primary._traits(TraitField.HISTORY);
+    static Field<?>[] ignoreHistory(Model<?> primary) {
+        if (primary._historic()) {
+            var his = primary._traits(TraitField.HISTORY);
             return Arrays.stream(primary._fields()).sequential()
-                    .map(x->x.equals(his)?new Field.HistoryProxy(his):x)
+                    .map(x -> x.equals(his) ? new Field.HistoryProxy(his) : x)
                     .toArray(Field<?>[]::new);
         }
         return primary._fields();
     }
+
     default void select(Writer q, State state, Rendered rendered, boolean singular) {
         rendered.stage = Stage.SELECT;
         q.w("SELECT").sp();
         if (state.hasPick()) {
+            assert state.picks != null;
             q.each(state.picks, ',', rendered::render);
-        } else if(state.withHistory) {
+        } else if (state.withHistory) {
             q.each(state.primary._fields(), ',', rendered::render);
             if (state.hasJoin()) {
+                assert state.joined != null;
                 q.w(',').each(state.joined, StmtJoin::model, ',', (w, m) -> w.each(m._fields(), ',', rendered::render));
             }
-        }else{
+        } else {
             q.each(ignoreHistory(state.primary), ',', rendered::render);
             if (state.hasJoin()) {
+                assert state.joined != null;
                 q.w(',').each(state.joined, StmtJoin::model, ',', (w, m) -> w.each(ignoreHistory(m), ',', rendered::render));
             }
         }
@@ -202,7 +214,7 @@ public interface Dialect extends Renderer {
             rendered.stage = Stage.JOIN;
             q.sp().each(state.joined, ' ', rendered::render);
         }
-        whereBuilder(q, state, rendered,false);
+        whereBuilder(q, state, rendered, false);
         if (state.grouped != null) {
             rendered.stage = Stage.GROUP_BY;
             q.wp("GROUP BY").each(state.grouped, ',', rendered::render);
@@ -233,7 +245,7 @@ public interface Dialect extends Renderer {
             rendered.stage = Stage.JOIN;
             q.sp().each(state.joined, ' ', rendered::render);
         }
-        whereBuilder(q, state, rendered,false);
+        whereBuilder(q, state, rendered, false);
         if (state.grouped != null) {
             rendered.stage = Stage.GROUP_BY;
             q.sp().w("GROUP BY").sp().each(state.grouped, ',', rendered::render);
@@ -246,7 +258,7 @@ public interface Dialect extends Renderer {
 
     }
 
-     void update(Writer q, State state, Rendered rendered);
+    void update(Writer q, State state, Rendered rendered);
     //endregion
 
     interface ReturningProcessor {
@@ -280,7 +292,7 @@ public interface Dialect extends Renderer {
 
     @Deprecated(since = "should not impl")
     @Override
-    default void assign(Writer w, Field<?> left, Object value) {
+    default void assign(Writer w, Field<?> left, @Nullable Object value) {
         throw new IllegalStateException("should never be called for SQL");
     }
 
@@ -417,7 +429,7 @@ public interface Dialect extends Renderer {
     void rightOuterJoin(Writer w, Model<?> model, Value.BooleanValue cond);
 
     @Override
-    default void set(Writer w, Field<?> left, Object value) {
+    default void set(Writer w, Field<?> left, @Nullable Object value) {
         var ow = left._onWrite(); //! handle write interceptor
         w.render(left).w("=");
         if (ow != null && !(value instanceof Renderable)) {

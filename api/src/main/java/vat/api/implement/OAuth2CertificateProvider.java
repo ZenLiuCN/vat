@@ -13,11 +13,10 @@ import io.vertx.ext.auth.oauth2.OAuth2FlowType;
 import io.vertx.ext.auth.oauth2.Oauth2Credentials;
 import io.vertx.ext.web.RoutingContext;
 import lombok.With;
-import org.jetbrains.annotations.NotNull;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import vat.api.Data;
 import vat.api.DomainError;
-import vat.api.meta.Nullable;
 import vat.api.utils.Fn;
 
 import java.util.List;
@@ -33,7 +32,7 @@ import java.util.function.UnaryOperator;
 
 public interface OAuth2CertificateProvider {
 
-    UnaryOperator<String> REQUIRED = s -> {
+    Function<@Nullable String, String> REQUIRED = s -> {
         if (s == null || s.isBlank()) throw DomainError.System.badRequest("missing required argument");
         return s;
     };
@@ -178,9 +177,9 @@ public interface OAuth2CertificateProvider {
             Predicate<User> hasProfilePredicate,
             Predicate<User> refreshTokenPredicate,
             ///Caches
-            Cache<@NotNull String, String> authority,
-            Cache<@NotNull String, User> users,
-            Cache<@NotNull String, Boolean> blackSheep
+            Cache<String, String> authority,
+            Cache<String, User> users,
+            Cache<String, Boolean> blackSheep
     ) {
         public OAuthProvider(
                 Logger log,
@@ -201,9 +200,9 @@ public interface OAuth2CertificateProvider {
                 Predicate<User> hasProfilePredicate,
                 Predicate<User> refreshTokenPredicate,
                 ///Caches
-                Cache<@NotNull String, String> authority,
-                Cache<@NotNull String, User> users,
-                Cache<@NotNull String, Boolean> blackSheep
+                Cache<String, String> authority,
+                Cache<String, User> users,
+                Cache<String, Boolean> blackSheep
         ) {
             this(
                     log, auth, callback, scopes, offline, urlConfigurator, credentialsConfigurator, blackIdentity, accessTokenReader, DEFAULT_SUBJECTOR, hasProfilePredicate, refreshTokenPredicate,

@@ -1,11 +1,12 @@
 package vat.api.implement;
 
 import io.vertx.core.Vertx;
+import org.jspecify.annotations.Nullable;
 import vat.api.Activities;
 import vat.api.Disposable;
 import vat.api.Domain;
 import vat.api.DomainError;
-import vat.api.meta.Nullable;
+
 
 import java.util.Arrays;
 import java.util.Map;
@@ -40,7 +41,7 @@ public interface DomainManager {
     static <T extends Activities> T use(Vertx vertx, Class<T> cls, @Nullable String address) {
         assert cls.isInterface() : "must the domain activities define interface";
         var domain = address == null ? cls.getCanonicalName() : address;
-        return Optional.ofNullable(Codec.activity(cls).apply(vertx, domain, null))
+        return Optional.of(Codec.activity(cls).apply(vertx, domain, null))
                 .filter(cls::isInstance)
                 .orElseThrow(() -> DomainError.System.conflict("missing domain activities {} ({})", cls, domain))
                 ;

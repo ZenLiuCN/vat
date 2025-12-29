@@ -6,8 +6,9 @@ import io.vertx.core.Vertx;
 import io.vertx.core.json.JsonObject;
 import io.vertx.sqlclient.Pool;
 import lombok.SneakyThrows;
+import org.jspecify.annotations.Nullable;
 import vat.api.Activities;
-import vat.api.meta.Nullable;
+
 import vat.api.store.Dialect;
 import vat.api.utils.Pointer;
 import vat.core.factory.SqlPoolFactory;

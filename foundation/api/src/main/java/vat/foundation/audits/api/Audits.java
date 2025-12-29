@@ -3,7 +3,7 @@ package vat.foundation.audits.api;
 import io.vertx.core.Future;
 import io.vertx.core.json.JsonObject;
 import lombok.With;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 import vat.api.*;
 import vat.api.Record;
 import vat.api.implement.PubSub;
@@ -37,7 +37,8 @@ public interface Audits extends Activities {
     }
 
     @Enhance
-    @Describe(value = "_AUDITS_AUDIT", domain = Audit.class)
+    @Describe(value = "_AUDITS_AUDIT")
+    @Identity.Refer(domain = Audits.class)
     @Table("foundation_audits_audit")
     interface Audit extends Record.Base, History {
         @Describe("_AUDITS_AUDIT_TOPIC")
@@ -125,7 +126,7 @@ public interface Audits extends Activities {
     }
 
     record AuditRequestAuditor(PubSub.Publish<AuditRequest> p) {
-        public <R> Future<R> invoke(String topic, Long actor, JsonObject request, Future<R> action) {
+        public <R> Future<R> invoke(String topic, @Nullable Long actor, JsonObject request, Future<R> action) {
             var b = new AuditRequest.Data(
                     Status.REQUEST
                     , actor == null ? -1 : actor
@@ -178,13 +179,13 @@ public interface Audits extends Activities {
     }
 
     record AuditResponseAuditor(PubSub.Publish<AuditResponse> p) {
-        public <R extends Data> Future<R> invoke(String topic, Long actor, Future<R> action) {
+        public <R extends Data> Future<R> invoke(String topic, @Nullable Long actor, Future<R> action) {
             var b = new AuditResponse.Data(Status.RESPONSE, actor == null ? -1 : actor, topic, JsonObject.of());
             return action.onSuccess(v -> p.accept(b.respond(v.toJson())))
                     .onFailure(v -> p.accept(b.failure(v)));
         }
 
-        public <R> Future<R> invoke(String topic, Long actor, Function<R, JsonObject> conv, Future<R> action) {
+        public <R> Future<R> invoke(String topic, @Nullable Long actor, Function<R, JsonObject> conv, Future<R> action) {
             var b = new AuditResponse.Data(Status.RESPONSE, actor == null ? -1 : actor, topic, JsonObject.of());
             return action.onSuccess(v -> p.accept(b.respond(conv.apply(v))))
                     .onFailure(v -> p.accept(b.failure(v)));
@@ -237,28 +238,29 @@ public interface Audits extends Activities {
     }
 
     record AuditInvokeAuditor(PubSub.Publish<AuditInvoke> p) {
-        public <R extends Data> Future<R> invoke(String topic, Long actor, JsonObject request, Future<R> action) {
+        public <R extends Data> Future<R> invoke(String topic, @Nullable Long actor, JsonObject request, Future<R> action) {
             var b = new AuditInvoke.Data(Status.SUCCESS, actor == null ? -1 : actor, topic, JsonObject.of("request", request), JsonObject.of());
             return action.onSuccess(v -> p.accept(b.respond(v.toJson())))
                     .onFailure(v -> p.accept(b.failure(v)));
         }
 
-        public <R> Future<R> invoke(String topic, Long actor, JsonObject request, Function<R, JsonObject> conv, Future<R> action) {
+        public <R> Future<R> invoke(String topic, @Nullable Long actor, JsonObject request, Function<R, JsonObject> conv, Future<R> action) {
             var b = new AuditInvoke.Data(Status.SUCCESS, actor == null ? -1 : actor, topic, JsonObject.of("request", request), JsonObject.of());
             return action.onSuccess(v -> p.accept(b.respond(conv.apply(v))))
                     .onFailure(v -> p.accept(b.failure(v)));
         }
 
-        public <R> Future<R> failure(String topic, Long actor, JsonObject request, Future<R> action) {
+        public <R> Future<R> failure(String topic, @Nullable Long actor, JsonObject request, Future<R> action) {
             var b = new AuditInvoke.Data(Status.FAILURE, actor == null ? -1 : actor, topic, JsonObject.of("request", request), JsonObject.of());
             return action.onFailure(v -> p.accept(b.failure(v)));
         }
     }
+
     @Access
     Future<Optional<Audit>> identity(long id);
 
     @Enhance
-    interface Contextual extends Audits,Domain.Context{
+    interface Context extends Audits, Domain.Context {
         @Describe("_AUDITS_ACT_SUBSCRIBE_REQUEST")
         @Subscribe
         default void onRequest(AuditRequest event) {

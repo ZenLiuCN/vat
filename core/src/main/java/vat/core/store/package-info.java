@@ -1,5 +1,5 @@
-/// Utilities
+/// Store implements
 @NullMarked
-package vat.api.utils;
+package vat.core.store;
 
 import org.jspecify.annotations.NullMarked;

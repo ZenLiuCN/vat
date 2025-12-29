@@ -1,7 +1,7 @@
 package vat.api.store;
 
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+
+import org.jspecify.annotations.Nullable;
 
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
@@ -13,8 +13,9 @@ import java.util.stream.Stream;
 ///
 /// @author Zen.Liu
 /// @since 2025-10-23
-public record Writer(Rendered rendered, StringBuilder builder, AtomicReference<Renderable> exprRefer) {
-    public Writer(Rendered rendered) {
+public record Writer(@Nullable Rendered rendered, StringBuilder builder,
+                     AtomicReference<@Nullable Renderable> exprRefer) {
+    public Writer(@Nullable Rendered rendered) {
         this(rendered, new StringBuilder(), new AtomicReference<>());
     }
 
@@ -22,12 +23,12 @@ public record Writer(Rendered rendered, StringBuilder builder, AtomicReference<R
         exprRefer.set(expr);
     }
 
-    public Renderable expr() {
+    public @Nullable Renderable expr() {
         return exprRefer.get();
     }
 
     @Override
-    public @NotNull String toString() {
+    public String toString() {
         return builder.toString();
     }
 
@@ -80,7 +81,8 @@ public record Writer(Rendered rendered, StringBuilder builder, AtomicReference<R
         return w("#{").w(s).w('}');
     }
 
-    public Writer render(Object value) {
+    public Writer render(@Nullable Object value) {
+        assert rendered != null;
         return rendered.render(this, value);
     }
 
@@ -117,7 +119,7 @@ public record Writer(Rendered rendered, StringBuilder builder, AtomicReference<R
         return when(cond, null, suc, after);
     }
 
-    public Writer when(String cond, @Nullable Consumer<Writer> before, BiConsumer<Writer, String> suc, @Nullable Consumer<Writer> after) {
+    public Writer when(@Nullable String cond, @Nullable Consumer<Writer> before, BiConsumer<Writer, String> suc, @Nullable Consumer<Writer> after) {
         if (cond != null && !cond.isEmpty()) {
             if (before != null) before.accept(this);
             suc.accept(this, cond);
@@ -156,7 +158,6 @@ public record Writer(Rendered rendered, StringBuilder builder, AtomicReference<R
         act.accept(this);
         return this;
     }
-
 
 
     public interface IndexConsumer<T> {

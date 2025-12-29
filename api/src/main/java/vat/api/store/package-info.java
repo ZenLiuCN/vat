@@ -1,5 +1,5 @@
-/// Utilities
+/// Storage
 @NullMarked
-package vat.api.utils;
+package vat.api.store;
 
 import org.jspecify.annotations.NullMarked;

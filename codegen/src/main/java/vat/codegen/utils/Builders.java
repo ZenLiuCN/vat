@@ -9,10 +9,10 @@ import lombok.EqualsAndHashCode;
 import lombok.ToString;
 import lombok.With;
 import org.jetbrains.annotations.ApiStatus;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 import org.jooq.lambda.function.Function2;
 import org.jooq.lambda.function.Function4;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 import vat.api.Ability;
 import vat.api.DomainError;
 import vat.api.Entity;
@@ -42,8 +42,8 @@ import java.util.stream.Stream;
 ///
 /// @author Zen.Liu
 /// @since 2025-12-03
-
-
+@NullMarked
+@SuppressWarnings({"UnusedReturnValue", "unused"})
 public interface Builders {
 
 
@@ -56,7 +56,7 @@ public interface Builders {
     interface Json<T extends Json<T>> extends Builders {
         T _this();
 
-        CodeBlock.Builder asJson();
+        CodeBlock.@Nullable Builder asJson();
 
         default T asJson(Consumer<CodeBlock.Builder> build) {
             var j = asJson();
@@ -68,9 +68,9 @@ public interface Builders {
     interface JS<T extends JS<T>> extends Builders {
         T _this();
 
-        CodeBlock.Builder toJs();
+        CodeBlock.@Nullable Builder toJs();
 
-        CodeBlock.Builder fromJs();
+        CodeBlock.@Nullable Builder fromJs();
 
         default T asJs(boolean js, BiConsumer<CodeBlock.Builder, CodeBlock.Builder> build) {
             if (!js) return _this();
@@ -91,9 +91,10 @@ public interface Builders {
     interface Bin<T extends Bin<T>> extends Builders {
         T _this();
 
-        CodeBlock.Builder toBin();
+        CodeBlock.@Nullable Builder toBin();
 
-        CodeBlock.Builder fromBin();
+        CodeBlock.@Nullable Builder fromBin();
+
 
         default T asBin(boolean js, BiConsumer<CodeBlock.Builder, CodeBlock.Builder> build) {
             if (!js) return _this();
@@ -133,7 +134,7 @@ public interface Builders {
                     name, type,
                     Fn.Monad.<TypeSpec.Builder>operator()
                             .apply(internal, p -> p.addAnnotation(ApiStatus.Internal.class))
-                            .apply(domain.addDomainIdentity(e, TypeSpec.classBuilder(name))
+                            .apply(Domain.addDomainIdentity(e, TypeSpec.classBuilder(name))
                                     .addAnnotations(EqualStringNoSuper)
                                     .addModifiers(Modifier.PUBLIC)
                                     .superclass(ParameterizedTypeName.get(ClassName.get(vat.api.Data.DataObject.class), type))
@@ -189,7 +190,7 @@ public interface Builders {
                 dataType,
                 Fn.Monad.<TypeSpec.Builder>operator()
                         .apply(internal, t -> t.addAnnotation(ApiStatus.Internal.class))
-                        .apply(domain.addDomainIdentity(e,
+                        .apply(Domain.addDomainIdentity(e,
                                         (record
                                                 ? TypeSpec.recordBuilder(dataName)
                                                 .addModifiers(Modifier.PUBLIC)
@@ -257,6 +258,8 @@ public interface Builders {
                     .build());
 
     //endregion
+
+
     record Data(
             TypeElement e,
             Domain domain,
@@ -291,8 +294,8 @@ public interface Builders {
             AtomicInteger propertySize
     ) implements Json<Data>, JS<Data>, Bin<Data>, Applicative<Data>, Flushable {
         @Override
-        public @NotNull String toString() {
-            return ""+e;
+        public String toString() {
+            return "" + e;
         }
 
         public void flush(Domain domain) {
@@ -388,7 +391,7 @@ public interface Builders {
                     if (ctx.isVertxFuture(t))
                         throw new IllegalStateException("data object can't have Future property: " + x);
                 })
-                .map(f -> Domain.resolveField(f, data.e, data.domain,data.binary))
+                .map(f -> Domain.resolveField(f, data.e, data.domain, data.binary))
                 .forEach(data.resolved()::add);
     }
 
@@ -411,7 +414,7 @@ public interface Builders {
                 .filter(x -> x.annotation(Computed.class))
                 .sorted(Comparator.comparingInt(GetterField::index))
                 .map(f -> {
-                    var resolved = Domain.resolveField(f, data.e, data.domain,data.binary);
+                    var resolved = Domain.resolveField(f, data.e, data.domain, data.binary);
                     var superType = data.e.asType();
                     var rawType = resolved.rawType();
                     var jsonProperty = data.jsonName;
@@ -473,7 +476,7 @@ public interface Builders {
                             .addMethod(MethodSpec.methodBuilder(superName.toString())
                                     .addModifiers(Modifier.PUBLIC)
                                     .addParameter(opt
-                                            ? ParameterSpec.builder(TypeName.get(rawType), "v").addAnnotation(vat.api.meta.Nullable.class).build()
+                                            ? ParameterSpec.builder(TypeName.get(rawType), "v").addAnnotation(Nullable.class).build()
                                             : ParameterSpec.builder(TypeName.get(rawType), "v").build())
                                     .returns(data.type())
                                     .addCode(CodeBlock.builder()
@@ -491,7 +494,7 @@ public interface Builders {
     }
 
     //region Copier
-    record CopyInfo(TypeMirror input, String name, TypeElement own, Map<String, CopyProcInfo> values,
+    record CopyInfo(TypeMirror input, @Nullable String name, TypeElement own, Map<String, CopyProcInfo> values,
                     CodeBlock.Builder code) {
         public String methodName(Context ctx) {
             return name == null || name.isEmpty()
@@ -575,7 +578,7 @@ public interface Builders {
             String name,
             ClassName type,
             TypeName entity,
-            String schema,
+            @Nullable String schema,
             String table,
             TypeSpec.Builder spec,
             List<ColumnInfo> columns,
@@ -748,7 +751,7 @@ public interface Builders {
     }
 
     record Audited(String topic, Auditing.Mode mode) {
-        public Audited(AnnotatedValue a,String aqn,ExecutableElement method){
+        public Audited(AnnotatedValue a, String aqn, ExecutableElement method) {
             this(a.getString("topic").orElseGet(() -> aqn + "::" + method.getSimpleName()),
                     a.getEnum("mode", Auditing.Mode.class).orElse(Auditing.Mode.FAILURE));
         }
@@ -760,14 +763,14 @@ public interface Builders {
             @Nullable String inName,
             TypeMirror outType,
             ExecutableElement method,
-            @Nullable
-            CodecBuilder.BufferCodecBuilder inCodec,
+
+            CodecBuilder.@Nullable BufferCodecBuilder inCodec,
             CodecBuilder.BufferCodecBuilder outCodec,
 
             boolean inNullable,
             boolean outNullable,
             boolean outOpt,
-            Audited audit,
+            @Nullable Audited audit,
             boolean storeTrait
     ) {
     }
@@ -782,13 +785,13 @@ public interface Builders {
             List<ActionInfo> actions
     ) implements Builders, Applicative<Activities>, Flushable {
         @Override
-        public @NotNull String toString() {
-            return ""+e;
+        public String toString() {
+            return "" + e;
         }
 
         public Stream<ActionInfo> definedActions() {
             if (actions.isEmpty()) {
-                buildActions(domain,null, e, e.getQualifiedName().toString(), faces, this.actions, null);
+                buildActions(domain, null, e, e.getQualifiedName().toString(), faces, this.actions, null);
             }
             return actions.stream();
         }
@@ -805,7 +808,7 @@ public interface Builders {
     }
 
     private static void buildActions(Domain domain,
-                                   @Nullable  TypeElement context,
+                                     @Nullable TypeElement context,
                                      TypeElement e,
                                      String activitiesQualifiedName,
                                      List<TypeElement> faces,
@@ -906,7 +909,7 @@ public interface Builders {
             }
             actionList.add(new ActionInfo(p, inType, inType == null ? null : p.getSimpleName().toString(), rt, method, inCodec, ret, inNullable, !retRequired, ro != null, action
                     .annotationValues(Auditing.class)
-                    .map(a -> new Audited(a,activitiesQualifiedName,method))
+                    .map(a -> new Audited(a, activitiesQualifiedName, method))
                     .orElse(null), storeTrait
             ));
         }
@@ -925,13 +928,13 @@ public interface Builders {
             , ExecutableMethod action
             , AnnotatedValue curd
             , BiFunction<ExecutableMethod, AnnotatedValue, StoreCurdMethod> create
-            , @Nullable Function<StoreMethod, StoreCurdMethod> check
+            , @Nullable Function<StoreMethod, @Nullable StoreCurdMethod> check
             , BiFunction<StoreMethod, StoreCurdMethod, StoreMethod> act) {
-        var out= create.apply(action, curd);
+        var out = create.apply(action, curd);
         var hold = commons.values().stream().filter(x -> {
             var t = x.store.entity;
             return t != null
-                   && (ctx.sameEntity(t.asType(),out.entity)
+                   && (ctx.sameEntity(t.asType(), out.entity)
                        || ctx.sameEntity(t.asType(), ctx.futureContent(action.resolvedType(where))));
         }).findFirst().orElse(null);
         if (hold == null) return;
@@ -976,7 +979,7 @@ public interface Builders {
             ExecutableElement method,
             String pointer,
             boolean once,
-            FuncField mapping,
+            @Nullable FuncField mapping,
             TypeMirror result,
             TypeMirror rawType,
             boolean opt,
@@ -1006,22 +1009,22 @@ public interface Builders {
     record UsesMethod(
             TypeMirror domain,
             ExecutableElement method,
-            String address,
+            @Nullable String address,
             String addressFieldName,
             boolean pointer
     ) implements ContextMethod {
     }
 
     record StoreRefer(
-            TypeElement entity,
-            String schema,
+            @Nullable TypeElement entity,
+            @Nullable String schema,
             boolean pointer,
             ClassName storeType,
             String schemaFieldName
     ) {
         @Override
         public boolean equals(Object obj) {
-            return obj instanceof StoreRefer o && o.entity.equals(entity);
+            return obj instanceof StoreRefer o && Objects.equals(o.entity, entity);
         }
     }
 
@@ -1029,14 +1032,14 @@ public interface Builders {
             ExecutableMethod method,
             TypeMirror entity,
             String copierStrategy,
-            AuthorizeInfo authorize
+            @Nullable AuthorizeInfo authorize
     ) {
         enum Mode {
             IDENTITY, UPDATE, REMOVE, CREATE, AUTHORIZE
         }
 
-        static final Function4<Domain, TypeElement, AnnotatedValue,ExecutableMethod, AuthorizeInfo> AUTHORIZE = (ctx, e,c,m) ->
-                AuthorizeInfo.parse(c,ctx,e,m.method());
+        static final Function4<Domain, @Nullable TypeElement, AnnotatedValue, ExecutableMethod, AuthorizeInfo> AUTHORIZE = (ctx, e, c, m) ->
+                AuthorizeInfo.parse(c, ctx, e, m.method());
         static Function<Mode, UnaryOperator<AuthorizeInfo>> ERROR_AUTHORIZE_PREDICATE = m -> $ -> {
             throw new IllegalStateException(m.name().toLowerCase() + " should not have authorize predicate defined");
         };
@@ -1046,30 +1049,31 @@ public interface Builders {
         static Function<Mode, UnaryOperator<String>> ERROR_AUTHORIZE = m -> $ -> {
             throw new IllegalStateException(m.name().toLowerCase() + " should not have authorize defined");
         };
-        static Function2<ExecutableMethod,AnnotatedValue,TypeMirror> ENTITY=( m, c)->c.getType("entity")
-                .filter(x->!m.ctx().isVoid(x))
-                .orElseGet(()->{
-                    var raw=m.ctx().futureContent(m.method().getReturnType());
-                    raw=m.ctx().orOptional(raw);
-                    if(!m.ctx().rawAssignableTo(raw, Entity.class))
-                        throw new IllegalStateException("can't found entity type for: "+m.method());
+        static Function2<ExecutableMethod, AnnotatedValue, TypeMirror> ENTITY = (m, c) -> c.getType("entity")
+                .filter(x -> !m.ctx().isVoid(x))
+                .orElseGet(() -> {
+                    var raw = m.ctx().futureContent(m.method().getReturnType());
+                    raw = m.ctx().orOptional(raw);
+                    if (!m.ctx().rawAssignableTo(raw, Entity.class))
+                        throw new IllegalStateException("can't found entity type for: " + m.method());
                     return raw;
                 });
-        static BiFunction<ExecutableMethod, AnnotatedValue, StoreCurdMethod> make(Mode mode, Domain dom, TypeElement own) {
+
+        static BiFunction<ExecutableMethod, AnnotatedValue, StoreCurdMethod> make(Mode mode, Domain dom, @Nullable TypeElement own) {
             return switch (mode) {
                 case IDENTITY, AUTHORIZE -> (m, c) -> new StoreCurdMethod(
                         m,
-                        ENTITY.apply(m,c),
+                        ENTITY.apply(m, c),
                         c.getString().map(ERROR_COPIER.apply(mode)).orElse(""),
-                        AnnotatedValue.of(m.method(), Authorized.class).map(v->AUTHORIZE.apply(dom, own, v,m)).map(ERROR_AUTHORIZE_PREDICATE.apply(mode)).orElse(null)
+                        AnnotatedValue.of(m.method(), Authorized.class).map(v -> AUTHORIZE.apply(dom, own, v, m)).map(ERROR_AUTHORIZE_PREDICATE.apply(mode)).orElse(null)
                 );
                 case UPDATE,
                      REMOVE,
                      CREATE -> (m, c) -> new StoreCurdMethod(
                         m,
-                        ENTITY.apply(m,c),
+                        ENTITY.apply(m, c),
                         c.getString().orElse(""),
-                        AnnotatedValue.of(m.method(), Authorized.class).map(v->AUTHORIZE.apply(dom, own, v,m)).orElse(null)
+                        AnnotatedValue.of(m.method(), Authorized.class).map(v -> AUTHORIZE.apply(dom, own, v, m)).orElse(null)
                 );
             };
         }
@@ -1079,15 +1083,15 @@ public interface Builders {
     record StoreMethod(
             StoreRefer store,
             ExecutableElement method,
-            String txName,
+            @Nullable String txName,
             @With boolean generated,
-            @With StoreCurdMethod identity,
-            @With StoreCurdMethod authorize,
-            @With StoreCurdMethod create,
-            @With StoreCurdMethod remove,
+            @Nullable @With StoreCurdMethod identity,
+            @Nullable @With StoreCurdMethod authorize,
+            @Nullable @With StoreCurdMethod create,
+            @Nullable @With StoreCurdMethod remove,
             Set<StoreCurdMethod> update
     ) implements ContextMethod {
-        StoreMethod(StoreRefer store, ExecutableElement method, String txName) {
+        StoreMethod(StoreRefer store, ExecutableElement method, @Nullable String txName) {
             this(store, method, txName, false, null, null, null, null, new HashSet<>());
         }
 
@@ -1280,7 +1284,7 @@ public interface Builders {
             if (config) parameters.add(ParameterSpec.builder(JsonObject.class, "conf").build());
             var activities = ctx.typeElementOf(this.activities);
             assert activities != null : "missing activities";
-            Builders.buildActions(domain,e, activities, activities.getQualifiedName().toString(), faces, this.actions, stores);
+            Builders.buildActions(domain, e, activities, activities.getQualifiedName().toString(), faces, this.actions, stores);
             return this;
         }
     }

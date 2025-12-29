@@ -1,5 +1,5 @@
-/// Utilities
+/// Verticle implements
 @NullMarked
-package vat.api.utils;
+package vat.core.verticles;
 
 import org.jspecify.annotations.NullMarked;
