@@ -839,6 +839,44 @@ public sealed interface Pipeline<C, T, S extends Pipeline<C, ?, S>> {
             });
         }
 
+
+        default Monadic<C, I, O> peek(Predicate<O> cond, Consumer<O> action) {
+            return map(v -> {
+                if (cond.test(v))
+                    action.accept(v);
+                return v;
+            });
+        }
+
+        default Monadic<C, I, O> peekCtx(BiPredicate<C, O> cond, BiConsumer<C, O> action) {
+            return mapCtx((ctx, v) -> {
+                if (cond.test(ctx, v))
+                    action.accept(ctx, v);
+                return v;
+            });
+        }
+
+        default <R> Monadic<C, I, R> value(R value) {
+            return mapCtx((ctx, v) -> value);
+        }
+
+        default <R> Monadic<C, I, R> valueCtx(Function<C, R> value) {
+            return mapCtx((ctx, v) -> value.apply(ctx));
+        }
+
+        default Monadic<C, I, O> onError(Handler<Throwable> handler) {
+            return (c, i) -> this.process(c, i).onFailure(handler);
+        }
+
+        default Monadic<C, I, O> onErrorCtx(BiConsumer<C, Throwable> handler) {
+            return (c, i) -> this.process(c, i).onFailure(e -> handler.accept(c, e));
+        }
+
+        /// check value
+        default Monadic<C, I, O> should(Expectation<? super O> action) {
+            return (c, i) -> this.process(c, i).expecting(action);
+        }
+
         default Monadic<C, I, O> guard(Predicate<O> predicate, DomainError error) {
             return flatMap(v -> predicate.test(v) ? Future.succeededFuture(v) : Future.failedFuture(error));
         }
@@ -937,10 +975,91 @@ public sealed interface Pipeline<C, T, S extends Pipeline<C, ?, S>> {
             });
         }
 
-        default <R> Monadic<C, I, R> fold(Function<Throwable, R> onFailure, Function<O, R> onSuccess) {
+        default <R> Monadic<C, I, R> fold(Function<O, R> onSuccess, Function<Throwable, R> onFailure) {
             return
                     map(onSuccess)
                             .recover(err -> Future.succeededFuture(onFailure.apply(err)));
+        }
+
+        default <R> Monadic<C, I, R> foldCtx(BiFunction<C, O, R> onSuccess, BiFunction<C, Throwable, R> onFailure) {
+            return
+                    mapCtx(onSuccess)
+                            .recoverCtx((c, err) -> Future.succeededFuture(onFailure.apply(c, err)));
+        }
+
+        default Monadic<C, I, O> eventually(Supplier<Future<Void>> action) {
+            return (c, i) -> this.process(c, i).eventually(action);
+        }
+
+        default Monadic<C, I, O> eventuallyCtx(Function<C, Future<Void>> action) {
+            return (c, i) -> this.process(c, i).eventually(() -> action.apply(c));
+        }
+
+        default <R> Monadic<C, I, R> bracket(Function<O, Future<R>> use,
+                                             Function<O, Future<Void>> release) {
+            return flatMap(resource -> use
+                    .apply(resource)
+                    .eventually(() -> release.apply(resource)));
+        }
+
+        default <R> Monadic<C, I, R> bracketCtx(BiFunction<C, O, Future<R>> use,
+                                                BiFunction<C, O, Future<Void>> release) {
+            return flatMapCtx((c, resource) -> use
+                    .apply(c, resource)
+                    .eventually(() -> release.apply(c, resource)));
+        }
+
+        default Monadic<C, I, O> check(Predicate<O> predicate, Function<O, Future<Void>> validation) {
+            return flatMap(v -> {
+                if (predicate.test(v)) {
+                    return validation.apply(v).map(ignore -> v);
+                }
+                return Future.succeededFuture(v);
+            });
+        }
+
+        default Monadic<C, I, O> checkCtx(BiPredicate<C, O> predicate, BiFunction<C, O, Future<Void>> validation) {
+            return flatMapCtx((c, v) -> {
+                if (predicate.test(c, v)) {
+                    return validation.apply(c, v).map(ignore -> v);
+                }
+                return Future.succeededFuture(v);
+            });
+        }
+
+        default <R> Monadic<C, I, R> match(
+                Predicate<O> predicate,
+                Function<O, Future<R>> onTrue,
+                Function<O, Future<R>> onFalse) {
+            return flatMap(val -> predicate.test(val)
+                                   ? onTrue.apply(val)
+                                   : onFalse.apply(val)
+                          );
+        }
+
+        default <R> Monadic<C, I, R> matchCtx(
+                BiPredicate<C, O> predicate,
+                BiFunction<C, O, Future<R>> onTrue,
+                BiFunction<C, O, Future<R>> onFalse) {
+            return flatMapCtx((ctx, val) -> predicate.test(ctx, val)
+                                      ? onTrue.apply(ctx, val)
+                                      : onFalse.apply(ctx, val)
+                             );
+        }
+
+        /// conditional applicative
+        default Monadic<C, I, O> flatMapIf(Predicate<O> predicate, Function<O, Future<O>> action) {
+            return flatMap(val -> predicate.test(val)
+                                   ? action.apply(val)
+                                   : Future.succeededFuture(val)
+                          );
+        }
+
+        default Monadic<C, I, O> flatMapIfCtx(BiPredicate<C, O> predicate, BiFunction<C, O, Future<O>> action) {
+            return flatMapCtx((c, val) -> predicate.test(c, val)
+                                      ? action.apply(c, val)
+                                      : Future.succeededFuture(val)
+                             );
         }
 
         default <R> Monadic<C, I, R> withBreaker(CircuitBreaker breaker, Function<O, Future<R>> action) {
@@ -972,6 +1091,15 @@ public sealed interface Pipeline<C, T, S extends Pipeline<C, ?, S>> {
         default Monadic<C, I, O> raceWith(Monadic<C, I, O> other) {
             return (ctx, in) -> Future.any(this.process(ctx, in), other.process(ctx, in))
                                       .map(cf -> cf.resultAt(0));
+        }
+
+        default Monadic<C, I, O> delay(Vertx vertx, long delay, TimeUnit unit) {
+            return (ctx, in) -> this.process(ctx, in)
+                                    .flatMap(val -> {
+                                        Promise<O> p = Promise.promise();
+                                        vertx.setTimer(unit.toMillis(delay), id -> p.complete(val));
+                                        return p.future();
+                                    });
         }
 
         default <E, X extends Iterable<E>> Batch<C, I, E, X> asBatch(Function<O, X> splitter) {
@@ -1130,6 +1258,9 @@ public sealed interface Pipeline<C, T, S extends Pipeline<C, ?, S>> {
                                                                                            (a, b) -> a));
             }
 
+            default <R> Monadic<C, I, R> collect(Function<T, R> collector) {
+                return (ctx, in) -> this.process(ctx, in).map(collector);
+            }
 
             private static <E, R> Future<List<R>> mapParallel(Iterable<E> items, int concurrency,
                                                               Function<E, Future<R>> mapper) {
