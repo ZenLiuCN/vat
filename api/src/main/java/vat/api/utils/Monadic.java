@@ -41,7 +41,7 @@ interface Monadic<C, I, O> {
     //region basic
 
     @SuppressWarnings("unchecked")
-    default <R> Monadic<C, I, R> flatMapCtx(BiFunction<C, O, Future<R>> mapper) {
+    default <R> Monadic<C, I, R> flatMap(BiFunction<C, O, Future<R>> mapper) {
         return switch (this) {
             case Finalized<C, I, O>(Steps.Step<C, Object, Object>[] fSteps) -> {
                 List<Steps.Step<C, Object, Object>> steps = new ArrayList<>(List.of(fSteps));
@@ -79,7 +79,7 @@ interface Monadic<C, I, O> {
     }
 
     @SuppressWarnings("unchecked")
-    default Monadic<C, I, O> recoverCtx(BiFunction<C, Throwable, Future<O>> fallback) {
+    default Monadic<C, I, O> recover(BiFunction<C, Throwable, Future<O>> fallback) {
         return switch (this) {
             case Finalized<C, I, O>(Steps.Step<C, Object, Object>[] fSteps) -> {
                 List<Steps.Step<C, Object, Object>> steps = new ArrayList<>(List.of(fSteps));
@@ -106,20 +106,20 @@ interface Monadic<C, I, O> {
         return flatMap(o -> Future.succeededFuture(mapper.apply(o)));
     }
 
-    default <R> Monadic<C, I, R> mapCtx(BiFunction<C, O, R> mapper) {
-        return flatMapCtx((c, i) -> Future.succeededFuture(mapper.apply(c, i)));
+    default <R> Monadic<C, I, R> map(BiFunction<C, O, R> mapper) {
+        return flatMap((c, i) -> Future.succeededFuture(mapper.apply(c, i)));
     }
 
     default <R> Monadic<C, I, Optional<R>> mapOpt(Function<O, @Nullable R> mapper) {
         return map(mapper).map(Optional::ofNullable);
     }
 
-    default <R> Monadic<C, I, Optional<R>> mapOptCtx(BiFunction<C, O, @Nullable R> mapper) {
-        return mapCtx(mapper).map(Optional::ofNullable);
+    default <R> Monadic<C, I, Optional<R>> mapOpt(BiFunction<C, O, @Nullable R> mapper) {
+        return map(mapper).map(Optional::ofNullable);
     }
 
     default <R> Monadic<C, I, R> flatMap(Function<O, Future<R>> mapper) {
-        return flatMapCtx((ctx, o) -> mapper.apply(o));
+        return flatMap((ctx, o) -> mapper.apply(o));
     }
 
 
@@ -130,8 +130,8 @@ interface Monadic<C, I, O> {
         });
     }
 
-    default Monadic<C, I, O> peekCtx(BiConsumer<C, O> action) {
-        return mapCtx((ctx, v) -> {
+    default Monadic<C, I, O> peek(BiConsumer<C, O> action) {
+        return map((ctx, v) -> {
             action.accept(ctx, v);
             return v;
         });
@@ -146,8 +146,8 @@ interface Monadic<C, I, O> {
         });
     }
 
-    default Monadic<C, I, O> peekCtx(BiPredicate<C, O> cond, BiConsumer<C, O> action) {
-        return mapCtx((ctx, v) -> {
+    default Monadic<C, I, O> peek(BiPredicate<C, O> cond, BiConsumer<C, O> action) {
+        return map((ctx, v) -> {
             if (cond.test(ctx, v))
                 action.accept(ctx, v);
             return v;
@@ -155,11 +155,11 @@ interface Monadic<C, I, O> {
     }
 
     default <R> Monadic<C, I, R> value(R value) {
-        return mapCtx((ctx, v) -> value);
+        return map((ctx, v) -> value);
     }
 
-    default <R> Monadic<C, I, R> valueCtx(Function<C, R> value) {
-        return mapCtx((ctx, v) -> value.apply(ctx));
+    default <R> Monadic<C, I, R> value(Function<C, R> value) {
+        return map((ctx, v) -> value.apply(ctx));
     }
 
     default <U, R> Monadic<C, I, R> zipPar(Monadic<C, I, U> other, BiFunction<O, U, R> combiner) {
@@ -167,7 +167,7 @@ interface Monadic<C, I, O> {
                 .map(cf -> combiner.apply(cf.resultAt(0), cf.resultAt(1)));
     }
 
-    default <U, R> Monadic<C, I, R> zipParCtx(Monadic<C, I, U> other, TriFunction<C, O, U, R> combiner) {
+    default <U, R> Monadic<C, I, R> zipPar(Monadic<C, I, U> other, TriFunction<C, O, U, R> combiner) {
         return (ctx, in) -> Future.all(this.process(ctx, in), other.process(ctx, in))
                 .map(cf -> combiner.apply(ctx, cf.resultAt(0), cf.resultAt(1)));
     }
@@ -184,8 +184,8 @@ interface Monadic<C, I, O> {
         return flatMap(v -> predicate.test(v) ? Future.succeededFuture(v) : Future.failedFuture(error));
     }
 
-    default Monadic<C, I, O> guardCtx(BiPredicate<C, O> predicate, Function<C, DomainError> error) {
-        return flatMapCtx((ctx, v) -> predicate.test(ctx, v)
+    default Monadic<C, I, O> guard(BiPredicate<C, O> predicate, Function<C, DomainError> error) {
+        return flatMap((ctx, v) -> predicate.test(ctx, v)
                 ? Future.succeededFuture(v)
                 : Future.failedFuture(error.apply(ctx)));
     }
@@ -193,7 +193,7 @@ interface Monadic<C, I, O> {
 
     //region failure
     default Monadic<C, I, O> recover(Function<Throwable, Future<O>> fallback) {
-        return recoverCtx((ctx, err) -> fallback.apply(err));
+        return recover((ctx, err) -> fallback.apply(err));
     }
 
 
@@ -204,16 +204,16 @@ interface Monadic<C, I, O> {
         });
     }
 
-    default <E extends Throwable> Monadic<C, I, O> recoverCtx(Class<E> errorType,
+    default <E extends Throwable> Monadic<C, I, O> recover(Class<E> errorType,
                                                               BiFunction<C, E, Future<O>> fallback) {
-        return recoverCtx((c, e) -> {
+        return recover((c, e) -> {
             if (errorType.isInstance(e)) return fallback.apply(c, errorType.cast(e));
             return Future.failedFuture(e);
         });
     }
 
     default Monadic<C, I, O> recover(Predicate<Throwable> errorType, Function<Throwable, Future<O>> fallback) {
-        return recoverCtx((ctx, err) -> {
+        return recover((ctx, err) -> {
             if (errorType.test(err)) {
                 return fallback.apply(err);
             }
@@ -221,9 +221,9 @@ interface Monadic<C, I, O> {
         });
     }
 
-    default Monadic<C, I, O> recoverCtx(BiPredicate<C, Throwable> errorType,
+    default Monadic<C, I, O> recover(BiPredicate<C, Throwable> errorType,
                                         BiFunction<C, Throwable, Future<O>> fallback) {
-        return recoverCtx((ctx, err) -> {
+        return recover((ctx, err) -> {
             if (errorType.test(ctx, err)) {
                 return fallback.apply(ctx, err);
             }
@@ -235,7 +235,7 @@ interface Monadic<C, I, O> {
         return (c, i) -> this.process(c, i).onFailure(handler);
     }
 
-    default Monadic<C, I, O> onErrorCtx(BiConsumer<C, Throwable> handler) {
+    default Monadic<C, I, O> onError(BiConsumer<C, Throwable> handler) {
         return (c, i) -> this.process(c, i).onFailure(e -> handler.accept(c, e));
     }
 
@@ -245,10 +245,10 @@ interface Monadic<C, I, O> {
                         .recover(err -> Future.succeededFuture(onFailure.apply(err)));
     }
 
-    default <R> Monadic<C, I, R> foldCtx(BiFunction<C, O, R> onSuccess, BiFunction<C, Throwable, R> onFailure) {
+    default <R> Monadic<C, I, R> fold(BiFunction<C, O, R> onSuccess, BiFunction<C, Throwable, R> onFailure) {
         return
-                mapCtx(onSuccess)
-                        .recoverCtx((c, err) -> Future.succeededFuture(onFailure.apply(c, err)));
+                map(onSuccess)
+                        .recover((c, err) -> Future.succeededFuture(onFailure.apply(c, err)));
     }
 
     //endregion
@@ -262,14 +262,14 @@ interface Monadic<C, I, O> {
         return flatMap(val -> breaker.execute(p -> action.apply(val).onComplete(p)));
     }
 
-    default <R> Monadic<C, I, R> withBreakerCtx(Function<C, CircuitBreaker> breaker, BiFunction<C, O, Future<R>> action) {
-        return flatMapCtx((c, val) -> breaker.apply(c).execute(p -> action.apply(c, val).onComplete(p)));
+    default <R> Monadic<C, I, R> withBreaker(Function<C, CircuitBreaker> breaker, BiFunction<C, O, Future<R>> action) {
+        return flatMap((c, val) -> breaker.apply(c).execute(p -> action.apply(c, val).onComplete(p)));
     }
 
     @SuppressWarnings("unchecked")
 
     default <R> Monadic<C, I, R> race(Function<O, Future<R>>... competitors) {
-        return flatMapCtx((ctx, in) -> Future
+        return flatMap((ctx, in) -> Future
                 .any(Arrays.stream(competitors)
                         .map(c -> c.apply(in))
                         .toList())
@@ -283,8 +283,8 @@ interface Monadic<C, I, O> {
     }
 
     @SuppressWarnings("unchecked")
-    default <R> Monadic<C, I, R> raceCtx(BiFunction<C, O, Future<R>>... competitors) {
-        return flatMapCtx((ctx, in) -> Future
+    default <R> Monadic<C, I, R> race(BiFunction<C, O, Future<R>>... competitors) {
+        return flatMap((ctx, in) -> Future
                 .any(Arrays.stream(competitors)
                         .map(c -> c.apply(ctx, in))
 
@@ -316,15 +316,15 @@ interface Monadic<C, I, O> {
         return flatMap(o -> vertx.executeBlocking(() -> handler.apply(o)));
     }
 
-    default <R> Monadic<C, I, R> blockingCtx(Vertx vertx, BiFunction<C, O, R> handler) {
-        return flatMapCtx((ctx, out) -> vertx.executeBlocking(() -> handler.apply(ctx, out)));
+    default <R> Monadic<C, I, R> blocking(Vertx vertx, BiFunction<C, O, R> handler) {
+        return flatMap((ctx, out) -> vertx.executeBlocking(() -> handler.apply(ctx, out)));
     }
 
     default Monadic<C, I, O> eventually(Supplier<Future<Void>> action) {
         return (c, i) -> this.process(c, i).eventually(action);
     }
 
-    default Monadic<C, I, O> eventuallyCtx(Function<C, Future<Void>> action) {
+    default Monadic<C, I, O> eventually(Function<C, Future<Void>> action) {
         return (c, i) -> this.process(c, i).eventually(() -> action.apply(c));
     }
 
@@ -351,9 +351,9 @@ interface Monadic<C, I, O> {
                 .eventually(() -> release.apply(resource)));
     }
 
-    default <R> Monadic<C, I, R> bracketCtx(BiFunction<C, O, Future<R>> use,
+    default <R> Monadic<C, I, R> bracket(BiFunction<C, O, Future<R>> use,
                                             BiFunction<C, O, Future<Void>> release) {
-        return flatMapCtx((c, resource) -> use
+        return flatMap((c, resource) -> use
                 .apply(c, resource)
                 .eventually(() -> release.apply(c, resource)));
     }
@@ -369,8 +369,8 @@ interface Monadic<C, I, O> {
         });
     }
 
-    default Monadic<C, I, O> checkCtx(BiPredicate<C, O> predicate, BiFunction<C, O, Future<Void>> validation) {
-        return flatMapCtx((c, v) -> {
+    default Monadic<C, I, O> check(BiPredicate<C, O> predicate, BiFunction<C, O, Future<Void>> validation) {
+        return flatMap((c, v) -> {
             if (predicate.test(c, v)) {
                 return validation.apply(c, v).map(ignore -> v);
             }
@@ -390,11 +390,11 @@ interface Monadic<C, I, O> {
         );
     }
 
-    default <R> Monadic<C, I, R> matchCtx(
+    default <R> Monadic<C, I, R> match(
             BiPredicate<C, O> predicate,
             BiFunction<C, O, Future<R>> onTrue,
             BiFunction<C, O, Future<R>> onFalse) {
-        return flatMapCtx((ctx, val) -> predicate.test(ctx, val)
+        return flatMap((ctx, val) -> predicate.test(ctx, val)
                 ? onTrue.apply(ctx, val)
                 : onFalse.apply(ctx, val)
         );
@@ -408,8 +408,8 @@ interface Monadic<C, I, O> {
         );
     }
 
-    default Monadic<C, I, O> flatMapIfCtx(BiPredicate<C, O> predicate, BiFunction<C, O, Future<O>> action) {
-        return flatMapCtx((c, val) -> predicate.test(c, val)
+    default Monadic<C, I, O> flatMapIf(BiPredicate<C, O> predicate, BiFunction<C, O, Future<O>> action) {
+        return flatMap((c, val) -> predicate.test(c, val)
                 ? action.apply(c, val)
                 : Future.succeededFuture(val)
         );
@@ -438,7 +438,7 @@ interface Monadic<C, I, O> {
                             .map(mapper).toList());
         }
 
-        default <R> Batch<C, I, R, List<R>> mapEachCtx(BiFunction<C, E, R> mapper) {
+        default <R> Batch<C, I, R, List<R>> mapEach(BiFunction<C, E, R> mapper) {
             return (ctx, in) -> this.process(ctx, in)
                     .map(items -> StreamSupport
                             .stream(items.spliterator(), false)
@@ -456,7 +456,7 @@ interface Monadic<C, I, O> {
                     );
         }
 
-        default <R> Batch<C, I, R, List<R>> mapEachParCtx(BiFunction<C, E, Future<R>> mapper) {
+        default <R> Batch<C, I, R, List<R>> mapEachPar(BiFunction<C, E, Future<R>> mapper) {
             return (ctx, in) -> this.process(ctx, in)
                     .flatMap(items -> Future
                             .all(StreamSupport
@@ -472,7 +472,7 @@ interface Monadic<C, I, O> {
                     mapParallel(items, concurrency, mapper));
         }
 
-        default <R> Batch<C, I, R, List<R>> mapEachParCtx(int concurrency, BiFunction<C, E, Future<R>> mapper) {
+        default <R> Batch<C, I, R, List<R>> mapEachPar(int concurrency, BiFunction<C, E, Future<R>> mapper) {
             return (ctx, in) -> this.process(ctx, in)
                     .flatMap(items -> mapParallel(items, concurrency, i -> mapper.apply(ctx, i)));
         }
@@ -483,7 +483,7 @@ interface Monadic<C, I, O> {
                             .filter(predicate).toList());
         }
 
-        default Batch<C, I, E, List<E>> filterCtx(BiPredicate<C, E> predicate) {
+        default Batch<C, I, E, List<E>> filter(BiPredicate<C, E> predicate) {
             return (ctx, in) -> this.process(ctx, in)
                     .map(items -> StreamSupport
                             .stream(items.spliterator(), false)
@@ -500,7 +500,7 @@ interface Monadic<C, I, O> {
             });
         }
 
-        default Batch<C, I, E, List<E>> filterParCtx(BiFunction<C, E, Future<Boolean>> predicate) {
+        default Batch<C, I, E, List<E>> filterPar(BiFunction<C, E, Future<Boolean>> predicate) {
             return (ctx, in) -> this.process(ctx, in).flatMap(items -> {
                 var list = StreamSupport.stream(items.spliterator(), false).toList();
                 var checks = list.stream().map(i -> predicate.apply(ctx, i)).toList();
@@ -525,7 +525,7 @@ interface Monadic<C, I, O> {
                                     classifier)));
         }
 
-        default <K> Monadic<C, I, Map<K, List<E>>> groupCtx(BiFunction<C, E, K> classifier) {
+        default <K> Monadic<C, I, Map<K, List<E>>> group(BiFunction<C, E, K> classifier) {
             return (ctx, in) -> this.process(ctx, in)
                     .map(items -> StreamSupport
                             .stream(items.spliterator(), false)
@@ -543,7 +543,7 @@ interface Monadic<C, I, O> {
                     );
         }
 
-        default <K, V> Monadic<C, I, Map<K, List<V>>> groupCtx(BiFunction<C, E, K> classifier,
+        default <K, V> Monadic<C, I, Map<K, List<V>>> group(BiFunction<C, E, K> classifier,
                                                                BiFunction<C, E, V> valueMapper) {
             return (ctx, in) -> this.process(ctx, in)
                     .map(items -> StreamSupport
@@ -564,7 +564,7 @@ interface Monadic<C, I, O> {
                                     (a, b) -> a));
         }
 
-        default <R> Monadic<C, I, R> reduceCtx(R identity, TriFunction<C, R, E, R> accumulator) {
+        default <R> Monadic<C, I, R> reduce(R identity, TriFunction<C, R, E, R> accumulator) {
             return (ctx, in) -> this.process(ctx, in).map(items ->
                     StreamSupport.stream(items.spliterator(), false)
                             .reduce(identity,

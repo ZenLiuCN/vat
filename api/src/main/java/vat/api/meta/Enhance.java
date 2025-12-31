@@ -21,10 +21,15 @@ public @interface Enhance {
     ///
     /// @apiNote only for {@link  vat.api.Data}
     boolean pojo() default false;
+
     /// domain use endpoint model,which make a Domain with Web.Factory parameter
     ///
     /// @apiNote only for {@link vat.api.Activities}
     boolean endpoint() default false;
+
     /// internal use only marker
     boolean internal() default false;
+
+    /// build monadic style context
+    boolean monadic() default true;
 }

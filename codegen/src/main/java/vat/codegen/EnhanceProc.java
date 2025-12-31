@@ -328,6 +328,18 @@ public class EnhanceProc implements Proc, MetaProc {
             throw new IllegalStateException("activities domain should be a interface: " + e);
         var ctx = domain.ctx();
         var dom = dominate(domain, e);
+        if (dom.haveMonadic())
+            monadic(ctx, e, dom, domain);
+        else
+            noneMonadic(ctx, e, dom, domain);
+    }
+
+    private void monadic(Context ctx, TypeElement e, Dominate dom, Domain domain) {
+        //! TODO
+        noneMonadic(ctx, e, dom, domain);
+    }
+
+    private void noneMonadic(Context ctx, TypeElement e, Dominate dom, Domain domain) {
         var web = dom.endpoint();
         var ctor = CodeBlock.builder();
         var ctorInitialize = CodeBlock.builder();
@@ -512,6 +524,12 @@ public class EnhanceProc implements Proc, MetaProc {
                                                 , storeType, arg == null ? "dialect" : arg, arg
                                         )
                                         .build());
+                            if (arg != null)
+                                dom.spec().addMethod(MethodSpec.methodBuilder(method.getSimpleName().toString())
+                                        .addModifiers(Modifier.PUBLIC, Modifier.FINAL)
+                                        .returns(storeType)
+                                        .addStatement("return $L(null)", method.getSimpleName())
+                                        .build());
 
                         }
                         case EventMethod c when !c.subscriber() -> {
@@ -677,7 +695,7 @@ public class EnhanceProc implements Proc, MetaProc {
                 auditCode = CodeBlock.builder();
             }
             if (AnnotatedValue.find(method, Authorized.class).isPresent()) {
-                var authorize = AuthorizeInfo.parse(AnnotatedValue.of(method, Authorized.class).get(), domain, e, method);
+                @SuppressWarnings("OptionalGetWithoutIsPresent") var authorize = AuthorizeInfo.parse(AnnotatedValue.of(method, Authorized.class).get(), domain, e, method);
                 authorized = CodeBlock.builder();
                 authorize.buildAuthorize(authorized);
             }
@@ -704,7 +722,7 @@ public class EnhanceProc implements Proc, MetaProc {
                                     .addModifiers(Modifier.ABSTRACT, Modifier.PROTECTED)
                                     .build())
                     ;
-                }else if(authorized!=null){
+                } else if (authorized != null) {
                     dom.spec()
                             .addMethod(MethodSpec.overriding(method)
                                     .addModifiers(Modifier.FINAL)
@@ -717,7 +735,7 @@ public class EnhanceProc implements Proc, MetaProc {
                                     .returns(TypeName.get(method.getReturnType()))
                                     .addModifiers(Modifier.ABSTRACT, Modifier.PROTECTED)
                                     .build());
-                }else {
+                } else {
                     processAudit(domain, dom.e(), method, implName, audit, auditing, auditCode);
                     dom.spec()
                             .addMethod(MethodSpec.overriding(method)
