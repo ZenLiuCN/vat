@@ -1,18 +1,21 @@
-
-
 import java.io.IOException;
-import java.nio.file.*;
-import java.util.*;
-import java.util.regex.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Scanner;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
-/**
- * VAT Project Management
- * 1. usage: `java VatProjectHelper.java`
- * 2. change with shebang type:
- * + add line `#! /opt/jdk/java --source 21
- * + remove extension `.java`
- * + execute as a shell script
- */
+
+/// VAT Project Management
+/// 1. usage: `java VatProjectHelper.java`
+/// 2. change with shebang type:
+/// + add line `#! /opt/jdk/java --source 21
+/// + remove extension `.java`
+/// + execute as a shell script
+///
 public class VatProjectHelper {
 
     private static final Scanner scanner = new Scanner(System.in);
@@ -64,20 +67,21 @@ public class VatProjectHelper {
         String className = Strings.toClassName(domain);
         Path domainDir = ROOT.resolve(domain);
 
-        IO.write(domainDir.resolve("pom.xml"), Templates.domainAggregator(gid, aid, domain));
+        IO.write(domainDir.resolve("pom.xml"), Templates.domainAggregator(gid, aid, Strings.toPackage(aid+"-"+domain),domain));
 
         Path apiPath = domainDir.resolve(domain + "-api");
         IO.write(apiPath.resolve("pom.xml"),
-                 Templates.childPom(gid, domain, domain + "-api", aid + "." + domain + ".api"));
+                 Templates.domainApiPom(gid,aid+"-"+domain , Strings.toPackage(aid + "." + domain + ".api")));
         IO.writeApiSource(apiPath, pkg, className);
 
         Path implPath = domainDir.resolve(domain + "-domain");
-        IO.write(implPath.resolve("pom.xml"), Templates.domainImplPom(gid, domain, aid + "." + domain + ".domain"));
+        IO.write(implPath.resolve("pom.xml"),
+                 Templates.domainImplPom(gid, aid+"-"+domain, Strings.toPackage(aid+ "." + domain + ".domain") ));
         IO.createImplSource(implPath, pkg, className);
 
         PomManager.registerModule(domain);
-        PomManager.addManagedDependency(gid, domain + "-api");
-        PomManager.addManagedDependency(gid, domain + "-domain");
+        PomManager.addManagedDependency(gid, aid+"-"+domain + "-api");
+        PomManager.addManagedDependency(gid, aid+"-"+domain + "-domain");
 
         System.out.println("√ Domain [" + domain + "] created. Package: " + pkg);
     }
@@ -88,7 +92,7 @@ public class VatProjectHelper {
         String node = prompt("Node Name", "gateway-node");
 
         Path nodePath = ROOT.resolve(node);
-        IO.write(nodePath.resolve("pom.xml"), Templates.nodePom(gid, aid, node, aid + "." + node));
+        IO.write(nodePath.resolve("pom.xml"), Templates.nodePom(gid, aid, node, Strings.toPackage(aid+ "." + node)) );
         Files.createDirectories(nodePath.resolve("src/main/resources"));
 
         PomManager.registerModule(node);
@@ -180,43 +184,43 @@ public class VatProjectHelper {
                     """.formatted(gid, aid, ver, aid);
         }
 
-        static String domainAggregator(String gid, String pAid, String domain) {
+        static String domainAggregator(String gid, String pAid,String mod, String domain) {
             return """
                     <project>
                         <modelVersion>4.0.0</modelVersion>
                         <parent>
-                            <groupId>%s</groupId>
-                            <artifactId>%s</artifactId>
+                            <groupId>%1$s</groupId>
+                            <artifactId>%2$s</artifactId>
                             <version>1.0-SNAPSHOT</version>
                         </parent>
-                        <artifactId>%s</artifactId>
+                        <artifactId>%2$s-%4$s</artifactId>
                         <packaging>pom</packaging>
                         <properties>
-                            <module.name>%s.%s</module.name>
+                            <module.name>%3$s</module.name>
                         </properties>
                         <modules>
-                            <module>%s-api</module>
-                            <module>%s-domain</module>
+                            <module>%4$s-api</module>
+                            <module>%4$s-domain</module>
                         </modules>
                     </project>
-                    """.formatted(gid, pAid, domain, pAid, domain, domain, domain);
+                    """.formatted(gid, pAid, mod,domain);
         }
 
-        static String childPom(String gid, String pAid, String aid, String modName) {
+        static String domainApiPom(String gid, String pAid,  String modName) {
             return """
                     <project>
                         <modelVersion>4.0.0</modelVersion>
                         <parent>
-                            <groupId>%s</groupId>
-                            <artifactId>%s</artifactId>
+                            <groupId>%1$s</groupId>
+                            <artifactId>%2$s</artifactId>
                             <version>1.0-SNAPSHOT</version>
                         </parent>
-                        <artifactId>%s</artifactId>
+                        <artifactId>%2$s-api</artifactId>
                         <properties>
-                            <module.name>%s</module.name>
+                            <module.name>%3$s</module.name>
                         </properties>
                     </project>
-                    """.formatted(gid, pAid, aid, modName);
+                    """.formatted(gid, pAid, modName);
         }
 
         static String domainImplPom(String gid, String domain, String modName) {
@@ -224,22 +228,22 @@ public class VatProjectHelper {
                     <project>
                         <modelVersion>4.0.0</modelVersion>
                         <parent>
-                            <groupId>%s</groupId>
-                            <artifactId>%s</artifactId>
+                            <groupId>%1$s</groupId>
+                            <artifactId>%2$s</artifactId>
                             <version>1.0-SNAPSHOT</version>
                         </parent>
-                        <artifactId>%s-domain</artifactId>
+                        <artifactId>%2$s-domain</artifactId>
                         <properties>
-                            <module.name>%s</module.name>
+                            <module.name>%3$s</module.name>
                         </properties>
                         <dependencies>
                             <dependency>
-                                <groupId>%s</groupId>
-                                <artifactId>%s-api</artifactId>
+                                <groupId>%1$s</groupId>
+                                <artifactId>%2$s-api</artifactId>
                             </dependency>
                         </dependencies>
                     </project>
-                    """.formatted(gid, domain, domain, modName, gid, domain);
+                    """.formatted(gid, domain,modName);
         }
 
         static String nodePom(String gid, String pAid, String aid, String modName) {
