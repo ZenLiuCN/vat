@@ -352,9 +352,9 @@ public class VatProjectHelper {
 
         static String implJava(String pkg, String cls) {
             return """
-                    package %s.domain;
+                    package %1$s.domain;
                     
-                    import %s.api.%sDomain;
+                    import %1$s.api.%2$sDomain;
                     import com.google.auto.service.AutoService;
                     import org.jspecify.annotations.NullMarked;
                     import io.vertx.core.Vertx;
@@ -364,13 +364,13 @@ public class VatProjectHelper {
                     @AutoService(Activities.class)
                     @Activity(mode = Activity.Mode.DOMAIN,auto=true)
                     @NullMarked
-                    public class %3$sImpl extends %3$sDomain<%3$sImpl> {
+                    public class %2$sImpl extends %2$sDomain<%2$sImpl> {
                         /// SPI constructor change to match super constructor.
-                         public %3$sImpl() {
+                         public %2$sImpl() {
                             super();
                          }
                          /// Verticle Factory constructor. Change to match super constructor.
-                         public %3$sImpl(Vertx vertx, String address) {
+                         public %2$sImpl(Vertx vertx, String address) {
                             super(vertx,address/* ... */);
                          }
                          @Override
@@ -378,7 +378,7 @@ public class VatProjectHelper {
                              return this;
                          }
                     }
-                    """.formatted(pkg, pkg, cls);
+                    """.formatted(pkg, cls);
         }
     }
 
