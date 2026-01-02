@@ -8,14 +8,14 @@ import java.util.Scanner;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-
-/// VAT Project Management
-/// 1. usage: `java VatProjectHelper.java`
-/// 2. change with shebang type:
-/// + add line `#! /opt/jdk/java --source 21
-/// + remove extension `.java`
-/// + execute as a shell script
-///
+/**
+ * VAT Project Management
+ * 1. usage: `java VatProjectHelper.java`
+ * 2. change with shebang type:
+ * + add line `#! /opt/jdk/java --source 21
+ * + remove extension `.java`
+ * + execute as a shell script
+ */
 public class VatProjectHelper {
 
     private static final Scanner scanner = new Scanner(System.in);
@@ -327,7 +327,7 @@ public class VatProjectHelper {
                         //endregion
                     
                         @Enhance
-                        interface Context extends %%2$s, Domain.Context {
+                        interface Context extends %2$s, Domain.Context {
                             // store example
                             // @Storage("/schema/users/user")
                             // default Store<User> users(@Nullable SqlConnection tx) {
@@ -369,7 +369,11 @@ public class VatProjectHelper {
                          }
                          /// Verticle Factory constructor. Change to match super constructor.
                          public %3$sImpl(Vertx vertx, String address) {
-                            super(vertx,address,/* ... */);
+                            super(vertx,address/* ... */);
+                         }
+                         @Override
+                         protected %2$sImpl _this() {
+                             return this;
                          }
                     }
                     """.formatted(pkg, pkg, cls);
