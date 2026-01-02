@@ -34,7 +34,7 @@ class MonadicUnifiedTest {
     void testFinalization(VertxTestContext vtc) {
         Monadic<String, Integer, Integer> pipeline = Monadic.<String, Integer>identity()
                 .map(i -> i + 1)
-                .mapCtx((c, i) -> i * 2)
+                .map((c, i) -> i * 2)
                 .finalization(); // Converts lazy Steps to Finalized (array-based)
 
         assertTrue(pipeline instanceof Monadic.Finalized);
@@ -51,7 +51,7 @@ class MonadicUnifiedTest {
     void testMapOptAndPeek(VertxTestContext vtc) {
         AtomicBoolean sideEffect = new AtomicBoolean(false);
         Monadic.<String, String>identity()
-                .peekCtx((c, v) -> v.equals("hi"), (c, v) -> sideEffect.set(true))
+                .peek((c, v) -> v.equals("hi"), (c, v) -> sideEffect.set(true))
                 .mapOpt(s -> s.length() > 3 ? s : null)
                 .process(CTX, "hi")
                 .onComplete(vtc.succeeding(res -> {
@@ -73,8 +73,8 @@ class MonadicUnifiedTest {
 
         Monadic.<String, List<Integer>>identity()
                 .asBatch(l -> l)
-                .filterParCtx((c, i) -> Future.succeededFuture(i % 2 == 0))
-                .groupCtx((c, i) -> i > 3 ? "Large" : "Small", (c, i) -> i * 10)
+                .filterPar((c, i) -> Future.succeededFuture(i % 2 == 0))
+                .group((c, i) -> i > 3 ? "Large" : "Small", (c, i) -> i * 10)
                 .process(CTX, data)
                 .onComplete(vtc.succeeding(res -> {
                     vtc.verify(() -> {
@@ -94,7 +94,7 @@ class MonadicUnifiedTest {
 
         Monadic.<String, List<Integer>>identity()
                 .asBatch(l -> l)
-                .mapEachParCtx(2, (c, i) -> {
+                .mapEachPar(2, (c, i) -> {
                     if (i % 2 == 0) return Future.succeededFuture(i * 10); // Fast path
                     return Future.future(p -> vertx.setTimer(10, id -> p.complete(i * 10))); // Async path
                 })
@@ -114,7 +114,7 @@ class MonadicUnifiedTest {
         AtomicBoolean released = new AtomicBoolean(false);
 
         Monadic.<String, String>identity()
-                .bracketCtx(
+                .bracket(
                         (c, res) -> Future.succeededFuture("Used " + res + " in " + c),
                         (c, res) -> {
                             released.set(true);
@@ -136,7 +136,7 @@ class MonadicUnifiedTest {
     @DisplayName("Recover: Conditional and Contextual Recovery")
     void testComplexRecovery(VertxTestContext vtc) {
         Monadic.<String, String, String>from((c, i) -> Future.failedFuture(new RuntimeException("Logic Error")))
-                .recoverCtx(RuntimeException.class, (ctx, err) ->
+                .recover(RuntimeException.class, (ctx, err) ->
                         err.getMessage().contains("Logic")
                                 ? Future.succeededFuture("Fixed in " + ctx)
                                 : Future.failedFuture(err))
@@ -169,7 +169,7 @@ class MonadicUnifiedTest {
     @DisplayName("FlatMapIf and Check: Conditional Execution")
     void testConditionalFlows(VertxTestContext vtc) {
         Monadic.<String, Integer>identity()
-                .flatMapIfCtx((c, i) -> i < 10, (c, i) -> Future.succeededFuture(i + 100))
+                .flatMapIf((c, i) -> i < 10, (c, i) -> Future.succeededFuture(i + 100))
                 .check(i -> i > 100, i -> Future.succeededFuture())
                 .process(CTX, 5)
                 .onComplete(vtc.succeeding(res -> {
@@ -217,7 +217,7 @@ class MonadicUnifiedTest {
         CircuitBreaker cb = CircuitBreaker.create("test", vertx, new CircuitBreakerOptions().setMaxFailures(1));
 
         Monadic.<String, String>identity()
-                .withBreakerCtx(c -> cb, (c, v) -> Future.succeededFuture(v + c))
+                .withBreaker(c -> cb, (c, v) -> Future.succeededFuture(v + c))
                 .process("!", "Hello")
                 .onComplete(vtc.succeeding(res -> {
                     vtc.verify(() -> assertEquals("Hello!", res));
@@ -232,7 +232,7 @@ class MonadicUnifiedTest {
         Monadic<String, Integer, Integer> m1 = (c, i) -> Future.succeededFuture(i + 1);
         Monadic<String, Integer, Integer> m2 = (c, i) -> Future.succeededFuture(i + 2);
 
-        m1.zipParCtx(m2, (c, a, b) -> a + b)
+        m1.zipPar(m2, (c, a, b) -> a + b)
                 .retry(vertx, Monadic.RetryPolicy.fast())
                 .process(CTX, 10)
                 .onComplete(vtc.succeeding(res -> {
