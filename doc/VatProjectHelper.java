@@ -356,12 +356,14 @@ public class VatProjectHelper {
                     
                     import %s.api.%sDomain;
                     import com.google.auto.service.AutoService;
+                    import org.jspecify.annotations.NullMarked;
                     import io.vertx.core.Vertx;
                     import vat.api.Activities;
                     import vat.api.meta.Activity;
                     
                     @AutoService(Activities.class)
                     @Activity(mode = Activity.Mode.DOMAIN,auto=true)
+                    @NullMarked
                     public class %3$sImpl extends %3$sDomain<%3$sImpl> {
                         /// SPI constructor change to match super constructor.
                          public %3$sImpl() {
