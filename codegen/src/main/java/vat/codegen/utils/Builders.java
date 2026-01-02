@@ -16,10 +16,7 @@ import org.jspecify.annotations.Nullable;
 import vat.api.Ability;
 import vat.api.DomainError;
 import vat.api.Entity;
-import vat.api.implement.BaseActivities;
-import vat.api.implement.BaseActivitiesProxy;
-import vat.api.implement.Codec;
-import vat.api.implement.Web;
+import vat.api.implement.*;
 import vat.api.meta.*;
 import vat.api.store.Dialect;
 import vat.api.trait.Accessor;
@@ -1112,6 +1109,8 @@ public interface Builders {
             String name,
             ClassName type,
             TypeSpec.Builder spec,
+            /// Monadic context
+            TypeSpec.@Nullable Builder ctx,
             boolean endpoint,
             List<TypeElement> faces,
             List<ParameterSpec> parameters,
@@ -1123,6 +1122,14 @@ public interface Builders {
         @Override
         public Dominate _this() {
             return this;
+        }
+
+        public TypeSpec.Builder ctxOrSpec() {
+            return ctx == null ? spec : ctx;
+        }
+
+        public boolean haveMonadic() {
+            return ctx != null;
         }
 
         @Override
@@ -1296,6 +1303,9 @@ public interface Builders {
         var activitiesDefineType = domain.findActivitiesDefine(e);
         var activitiesName = domain.activitiesDomainName(e);
         var activitiesType = domain.activitiesDomainTypeName(e);
+        var anno = AnnotatedValue.of(e, Enhance.class).orElseThrow(() -> DomainError.System.conflict("missing Enhance annotation"));
+        var ctx = anno.getBoolean("monadic").orElse(true);
+
         var activities = Domain.addDomainIdentity(e, TypeSpec.classBuilder(activitiesName)
                         .addAnnotation(ApiStatus.Internal.class)
                         .addTypeVariable(TypeVariableName.get("T",
@@ -1313,8 +1323,11 @@ public interface Builders {
                         .addModifiers(Modifier.PUBLIC, Modifier.FINAL, Modifier.STATIC)
                         .initializer("$T.getLogger($T.class)", LOGGER_FACTORY, e.asType())
                         .build());
-        var web = AnnotatedValue.of(e, Enhance.class)
-                .orElseThrow(() -> DomainError.System.conflict("missing Enhance annotation"))
+
+        var ctxType = ctx ? TypeSpec.recordBuilder("Context")
+                .addSuperinterface(e.asType())
+                .addSuperinterface(MonadicContext.class) : null;
+        var web = anno
                 .getBoolean("endpoint").orElse(false);
         var parameters = new ArrayList<>(List.of(
                 ParameterSpec.builder(Vertx.class, "vertx").build(),
@@ -1327,6 +1340,7 @@ public interface Builders {
                 activitiesName,
                 activitiesType,
                 activities,
+                ctxType,
                 web,
                 Stream.concat(domain.ctx().interfaces(e).stream(), Stream.of(e)).distinct().toList(),
                 parameters,
